@@ -74,7 +74,7 @@ func run(appCtx context.Context, config *conf.Config) error {
 	logger := log.Log.WithName("app")
 
 	_ = logger
-	mgr, err := fs.NewManager(config.FS)
+	mgr, err := fs.NewManager(appCtx, config.FS)
 	if err != nil {
 		return fmt.Errorf("failed to create fs manager: %w", err)
 	}

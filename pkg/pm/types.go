@@ -1,7 +1,13 @@
 package pm
 
+type LoginInputCallbackFunc func() (username, password string, err error)
+
 type Interface interface {
-	Login(password string) error
+	DriverName() string
+
+	ConfigName() string
+
+	Login(showLoginPrompt LoginInputCallbackFunc) error
 
 	Get(key string) ([]byte, error)
 

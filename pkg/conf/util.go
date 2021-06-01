@@ -30,7 +30,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"arhat.dev/template-application-go/pkg/constant"
+	"arhat.dev/credentialfs/pkg/constant"
 )
 
 func ReadConfig(

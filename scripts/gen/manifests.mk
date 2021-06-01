@@ -14,9 +14,9 @@
 
 NS ?= default
 
-gen.manifests.template-application-go:
+gen.manifests.credentialfs:
 	helm template \
-		template-application-go \
-		cicd/deploy/charts/template-application-go \
+		credentialfs \
+		cicd/deploy/charts/credentialfs \
 		--include-crds --namespace ${NS} --debug \
-		| tee cicd/deploy/kube/template-application-go.yaml
+		| tee cicd/deploy/kube/credentialfs.yaml

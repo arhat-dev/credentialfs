@@ -18,5 +18,5 @@ package constant
 
 // nolint:revive
 const (
-	DefaultConfigFile = "/etc/template-application-go/config.yaml"
+	DefaultConfigFile = "/etc/credentialfs/config.yaml"
 )

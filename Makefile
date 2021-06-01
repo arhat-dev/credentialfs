@@ -31,28 +31,28 @@ vendor:
 include scripts/test/unit.mk
 
 # binary build
-include scripts/build/template-application-go.mk
+include scripts/build/credentialfs.mk
 
 # image
-include scripts/image/template-application-go.mk
+include scripts/image/credentialfs.mk
 
 image.build.linux.all: \
-	image.build.template-application-go.linux.all
+	image.build.credentialfs.linux.all
 
 image.build.windows.all: \
-	image.build.template-application-go.windows.all
+	image.build.credentialfs.windows.all
 
 image.push.linux.all: \
-	image.push.template-application-go.linux.all
+	image.push.credentialfs.linux.all
 
 image.push.windows.all: \
-	image.push.template-application-go.windows.all
+	image.push.credentialfs.windows.all
 
 # manifest gen
 include scripts/gen/manifests.mk
 
 # packaging
-include scripts/package/template-application-go.mk
+include scripts/package/credentialfs.mk
 
 # optional private scripts
 -include private/scripts.mk

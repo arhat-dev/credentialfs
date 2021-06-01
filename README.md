@@ -1,24 +1,12 @@
-# Template Application Go
+# CredentialFS
 
-[![CI](https://github.com/arhat-dev/template-application-go/workflows/CI/badge.svg)](https://github.com/arhat-dev/template-application-go/actions?query=workflow%3ACI)
-[![Build](https://github.com/arhat-dev/template-application-go/workflows/Build/badge.svg)](https://github.com/arhat-dev/template-application-go/actions?query=workflow%3ABuild)
-[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/template-application-go)](https://pkg.go.dev/arhat.dev/template-application-go)
-[![GoReportCard](https://goreportcard.com/badge/arhat.dev/template-application-go)](https://goreportcard.com/report/arhat.dev/template-application-go)
-[![codecov](https://codecov.io/gh/arhat-dev/template-application-go/branch/master/graph/badge.svg)](https://codecov.io/gh/arhat-dev/template-application-go)
+[![CI](https://github.com/arhat-dev/credentialfs/workflows/CI/badge.svg)](https://github.com/arhat-dev/credentialfs/actions?query=workflow%3ACI)
+[![Build](https://github.com/arhat-dev/credentialfs/workflows/Build/badge.svg)](https://github.com/arhat-dev/credentialfs/actions?query=workflow%3ABuild)
+[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/credentialfs)](https://pkg.go.dev/arhat.dev/credentialfs)
+[![GoReportCard](https://goreportcard.com/badge/arhat.dev/credentialfs)](https://goreportcard.com/report/arhat.dev/credentialfs)
+[![codecov](https://codecov.io/gh/arhat-dev/credentialfs/branch/master/graph/badge.svg)](https://codecov.io/gh/arhat-dev/credentialfs)
 
-Template repo for applications written in Go
-
-## Make Targets
-
-- binary build: `<comp>.{OS}.{ARCH}`
-- image build: `image.build.<comp>.{OS}.{ARCH}`
-- image push: `image.push.<comp>.{OS}.{ARCH}`
-- unit tests: `test.pkg`, `test.cmd`
-- packaging:
-  - linux deb: `package.<comp>.deb.{ARCH}`
-  - linux rpm: `package.<comp>.rpm.{ARCH}`
-  - windows msi: `package.<comp>.msi.{ARCH}`
-  - darwin pkg: `package.<comp>.pkg.{ARCH}`
+FUSE for credentials stored in password managers
 
 ## LICENSE
 

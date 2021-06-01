@@ -30,9 +30,9 @@ _build() {
   eval "$1"
 }
 
-template_application_go() {
+credentialfs() {
   # TODO: set mandatory tags and predefined tags for specific platforms
-  _build "${GOBUILD} -tags='nokube nocloud netgo ${PREDEFINED_BUILD_TAGS} ${TAGS}' ./cmd/template-application-go"
+  _build "${GOBUILD} -tags='nokube nocloud netgo ${PREDEFINED_BUILD_TAGS} ${TAGS}' ./cmd/credentialfs"
 }
 
 COMP=$(printf "%s" "$@" | cut -d. -f1)
@@ -160,11 +160,11 @@ fi
 CGO_FLAGS="CC=${CC} CXX=${CXX} CC_FOR_TARGET=${CC} CXX_FOR_TARGET=${CXX} CGO_CFLAGS_ALLOW='-W' CGO_CFLAGS='${CFLAGS}' CGO_LDFLAGS='${LDFLAGS}'"
 
 GO_LDFLAGS="-s -w \
-  -X arhat.dev/template-application-go/pkg/version.branch=${GIT_BRANCH} \
-  -X arhat.dev/template-application-go/pkg/version.commit=${GIT_COMMIT} \
-  -X arhat.dev/template-application-go/pkg/version.tag=${GIT_TAG} \
-  -X arhat.dev/template-application-go/pkg/version.arch=${ARCH} \
-  -X arhat.dev/template-application-go/pkg/version.goCompilerPlatform=$(go version | cut -d\  -f4)"
+  -X arhat.dev/credentialfs/pkg/version.branch=${GIT_BRANCH} \
+  -X arhat.dev/credentialfs/pkg/version.commit=${GIT_COMMIT} \
+  -X arhat.dev/credentialfs/pkg/version.tag=${GIT_TAG} \
+  -X arhat.dev/credentialfs/pkg/version.arch=${ARCH} \
+  -X arhat.dev/credentialfs/pkg/version.goCompilerPlatform=$(go version | cut -d\  -f4)"
 
 GOARM="$(_get_goarm "${ARCH}")"
 if [ -z "${GOARM}" ]; then

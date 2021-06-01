@@ -107,7 +107,7 @@ EOF
   mv "${PACKAGE_DIR}/${pkg_file}" ${BUILD_DIR}/.
 }
 
-package_template_application_go() {
+package_credentialfs() {
   config_file="${PACKAGE_DIR}/${COMP}-${ARCH}.config.yaml"
   cat > "${config_file}" <<EOF
 TODO: add sample config here

@@ -47,18 +47,18 @@ jobs:
 
     - name: Build
       run: |
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.linux.all
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.freebsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.netbsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.openbsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.plan9.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.solaris.amd64 TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.aix.ppc64 TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.dragonfly.amd64 TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.linux.all
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.freebsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.netbsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.openbsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.plan9.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.solaris.amd64 TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.aix.ppc64 TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.dragonfly.amd64 TAGS=''
 
     # - name: Package
     #   run: |
-    #     make package.template-application-go.linux.all
+    #     make package.credentialfs.linux.all
 
     - name: Hash
       run: |
@@ -66,9 +66,9 @@ jobs:
 
         cd build
         for os in ${os_list}; do
-          sha256sum template-application-go.${os}* > sha256.${os}.txt
-          sha512sum template-application-go.${os}* > sha512.${os}.txt
-          md5sum template-application-go.${os}* > md5.${os}.txt
+          sha256sum credentialfs.${os}* > sha256.${os}.txt
+          sha512sum credentialfs.${os}* > sha512.${os}.txt
+          md5sum credentialfs.${os}* > md5.${os}.txt
         done
         cd -
 
@@ -112,18 +112,18 @@ jobs:
   #   - name: Build
   #     run: |
   #       # may need to install some packages during build process, do not run in parallel
-  #       CGO_ENABLED=1 make template-application-go.linux.all
+  #       CGO_ENABLED=1 make credentialfs.linux.all
 
   #   - name: Package
   #     run: |
-  #       make package.template-application-go.linux.all
+  #       make package.credentialfs.linux.all
 
   #   - name: Hash
   #     run: |
   #       cd build
-  #       sha256sum template-application-go.linux* > sha256.linux.txt
-  #       sha512sum template-application-go.linux* > sha512.linux.txt
-  #       md5sum template-application-go.linux* > md5.linux.txt
+  #       sha256sum credentialfs.linux* > sha256.linux.txt
+  #       sha512sum credentialfs.linux* > sha512.linux.txt
+  #       md5sum credentialfs.linux* > md5.linux.txt
   #       cd -
 
   #   - name: Upload Artifact
@@ -143,13 +143,13 @@ jobs:
 
     - name: Build
       run: |
-        CGO_ENABLED=1 make template-application-go.darwin.amd64
-        CGO_ENABLED=0 make template-application-go.darwin.arm64
+        CGO_ENABLED=1 make credentialfs.darwin.amd64
+        CGO_ENABLED=0 make credentialfs.darwin.arm64
 
     # # TODO: Support macos packaging
     # - name: Package
     #   run: |
-    #     make package.template-application-go.darwin.all
+    #     make package.credentialfs.darwin.all
 
     - name: Install md5sum
       run: |
@@ -158,9 +158,9 @@ jobs:
     - name: Hash
       run: |
         cd build
-        shasum -a 256 template-application-go.darwin* > sha256.darwin.txt
-        shasum -a 512 template-application-go.darwin* > sha512.darwin.txt
-        md5sum template-application-go.darwin* > md5.darwin.txt
+        shasum -a 256 credentialfs.darwin* > sha256.darwin.txt
+        shasum -a 512 credentialfs.darwin* > sha512.darwin.txt
+        md5sum credentialfs.darwin* > md5.darwin.txt
         cd -
 
     - name: Upload Artifact
@@ -180,19 +180,19 @@ jobs:
 
     - name: Build
       run: |
-        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.windows.all
+        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.windows.all
 
     # # TODO: Support windows packaging
     # - name: Package
     #   run: |
-    #     make package.template-application-go.windows.all
+    #     make package.credentialfs.windows.all
 
     - name: Hash
       run: |
         cd build
-        sha256sum template-application-go.windows* > sha256.windows.txt
-        sha512sum template-application-go.windows* > sha512.windows.txt
-        md5sum template-application-go.windows* > md5.windows.txt
+        sha256sum credentialfs.windows* > sha256.windows.txt
+        sha512sum credentialfs.windows* > sha512.windows.txt
+        md5sum credentialfs.windows* > md5.windows.txt
         cd -
 
     - name: Upload Artifact
@@ -280,13 +280,13 @@ jobs:
 
           ## Images
 
-          - `docker.io/arhatdev/template-application-go:${{ steps.extract_tag.outputs.tag }}`
-          - `ghcr.io/arhat-dev/template-application-go:${{ steps.extract_tag.outputs.tag }}`
+          - `docker.io/arhatdev/credentialfs:${{ steps.extract_tag.outputs.tag }}`
+          - `ghcr.io/arhat-dev/credentialfs:${{ steps.extract_tag.outputs.tag }}`
 
           ## Helm Charts
 
-          - Have a look at [ArtifactHub](https://artifacthub.io/packages/helm/arhatdev/template-application-go)
-          - Checkout chart [source code](https://github.com/arhat-dev/template-application-go/blob/${{ steps.extract_tag.outputs.tag }}/cicd/deploy/charts/template-application-go)
+          - Have a look at [ArtifactHub](https://artifacthub.io/packages/helm/arhatdev/credentialfs)
+          - Checkout chart [source code](https://github.com/arhat-dev/credentialfs/blob/${{ steps.extract_tag.outputs.tag }}/cicd/deploy/charts/credentialfs)
 
     #
     # checksums
@@ -336,616 +336,616 @@ jobs:
         asset_path: build/md5.txt
         asset_content_type: text/plain
 
-    - name: Upload template-application-go.darwin.amd64
+    - name: Upload credentialfs.darwin.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.darwin.amd64
-        asset_path: build/template-application-go.darwin.amd64
+        asset_name: credentialfs.darwin.amd64
+        asset_path: build/credentialfs.darwin.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.darwin.arm64
+    - name: Upload credentialfs.darwin.arm64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.darwin.arm64
-        asset_path: build/template-application-go.darwin.arm64
+        asset_name: credentialfs.darwin.arm64
+        asset_path: build/credentialfs.darwin.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.windows.x86
+    - name: Upload credentialfs.windows.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.windows.x86.exe
-        asset_path: build/template-application-go.windows.x86.exe
+        asset_name: credentialfs.windows.x86.exe
+        asset_path: build/credentialfs.windows.x86.exe
         asset_content_type: application/x-ms-dos-executable
 
-    - name: Upload template-application-go.windows.amd64
+    - name: Upload credentialfs.windows.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.windows.amd64.exe
-        asset_path: build/template-application-go.windows.amd64.exe
+        asset_name: credentialfs.windows.amd64.exe
+        asset_path: build/credentialfs.windows.amd64.exe
         asset_content_type: application/x-ms-dos-executable
 
-    - name: Upload template-application-go.windows.armv5
+    - name: Upload credentialfs.windows.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.windows.armv5.exe
-        asset_path: build/template-application-go.windows.armv5.exe
+        asset_name: credentialfs.windows.armv5.exe
+        asset_path: build/credentialfs.windows.armv5.exe
         asset_content_type: application/x-ms-dos-executable
 
-    - name: Upload template-application-go.windows.armv6
+    - name: Upload credentialfs.windows.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.windows.armv6.exe
-        asset_path: build/template-application-go.windows.armv6.exe
+        asset_name: credentialfs.windows.armv6.exe
+        asset_path: build/credentialfs.windows.armv6.exe
         asset_content_type: application/x-ms-dos-executable
 
-    - name: Upload template-application-go.windows.armv7
+    - name: Upload credentialfs.windows.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.windows.armv7.exe
-        asset_path: build/template-application-go.windows.armv7.exe
+        asset_name: credentialfs.windows.armv7.exe
+        asset_path: build/credentialfs.windows.armv7.exe
         asset_content_type: application/x-ms-dos-executable
 
-    - name: Upload template-application-go.linux.x86
+    - name: Upload credentialfs.linux.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.x86
-        asset_path: build/template-application-go.linux.x86
+        asset_name: credentialfs.linux.x86
+        asset_path: build/credentialfs.linux.x86
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.amd64
+    - name: Upload credentialfs.linux.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.amd64
-        asset_path: build/template-application-go.linux.amd64
+        asset_name: credentialfs.linux.amd64
+        asset_path: build/credentialfs.linux.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.armv5
+    - name: Upload credentialfs.linux.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.armv5
-        asset_path: build/template-application-go.linux.armv5
+        asset_name: credentialfs.linux.armv5
+        asset_path: build/credentialfs.linux.armv5
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.armv6
+    - name: Upload credentialfs.linux.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.armv6
-        asset_path: build/template-application-go.linux.armv6
+        asset_name: credentialfs.linux.armv6
+        asset_path: build/credentialfs.linux.armv6
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.armv7
+    - name: Upload credentialfs.linux.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.armv7
-        asset_path: build/template-application-go.linux.armv7
+        asset_name: credentialfs.linux.armv7
+        asset_path: build/credentialfs.linux.armv7
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.arm64
+    - name: Upload credentialfs.linux.arm64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.arm64
-        asset_path: build/template-application-go.linux.arm64
+        asset_name: credentialfs.linux.arm64
+        asset_path: build/credentialfs.linux.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.ppc64
+    - name: Upload credentialfs.linux.ppc64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.ppc64
-        asset_path: build/template-application-go.linux.ppc64
+        asset_name: credentialfs.linux.ppc64
+        asset_path: build/credentialfs.linux.ppc64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.ppc64le
+    - name: Upload credentialfs.linux.ppc64le
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.ppc64le
-        asset_path: build/template-application-go.linux.ppc64le
+        asset_name: credentialfs.linux.ppc64le
+        asset_path: build/credentialfs.linux.ppc64le
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.s390x
+    - name: Upload credentialfs.linux.s390x
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.s390x
-        asset_path: build/template-application-go.linux.s390x
+        asset_name: credentialfs.linux.s390x
+        asset_path: build/credentialfs.linux.s390x
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mips
+    - name: Upload credentialfs.linux.mips
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mips
-        asset_path: build/template-application-go.linux.mips
+        asset_name: credentialfs.linux.mips
+        asset_path: build/credentialfs.linux.mips
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mipshf
+    - name: Upload credentialfs.linux.mipshf
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mipshf
-        asset_path: build/template-application-go.linux.mipshf
+        asset_name: credentialfs.linux.mipshf
+        asset_path: build/credentialfs.linux.mipshf
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mipsle
+    - name: Upload credentialfs.linux.mipsle
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mipsle
-        asset_path: build/template-application-go.linux.mipsle
+        asset_name: credentialfs.linux.mipsle
+        asset_path: build/credentialfs.linux.mipsle
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mipslehf
+    - name: Upload credentialfs.linux.mipslehf
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mipslehf
-        asset_path: build/template-application-go.linux.mipslehf
+        asset_name: credentialfs.linux.mipslehf
+        asset_path: build/credentialfs.linux.mipslehf
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mips64
+    - name: Upload credentialfs.linux.mips64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mips64
-        asset_path: build/template-application-go.linux.mips64
+        asset_name: credentialfs.linux.mips64
+        asset_path: build/credentialfs.linux.mips64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mips64hf
+    - name: Upload credentialfs.linux.mips64hf
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mips64hf
-        asset_path: build/template-application-go.linux.mips64hf
+        asset_name: credentialfs.linux.mips64hf
+        asset_path: build/credentialfs.linux.mips64hf
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mips64le
+    - name: Upload credentialfs.linux.mips64le
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mips64le
-        asset_path: build/template-application-go.linux.mips64le
+        asset_name: credentialfs.linux.mips64le
+        asset_path: build/credentialfs.linux.mips64le
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.linux.mips64lehf
+    - name: Upload credentialfs.linux.mips64lehf
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.linux.mips64lehf
-        asset_path: build/template-application-go.linux.mips64lehf
+        asset_name: credentialfs.linux.mips64lehf
+        asset_path: build/credentialfs.linux.mips64lehf
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.x86
+    - name: Upload credentialfs.freebsd.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.x86
-        asset_path: build/template-application-go.freebsd.x86
+        asset_name: credentialfs.freebsd.x86
+        asset_path: build/credentialfs.freebsd.x86
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.amd64
+    - name: Upload credentialfs.freebsd.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.amd64
-        asset_path: build/template-application-go.freebsd.amd64
+        asset_name: credentialfs.freebsd.amd64
+        asset_path: build/credentialfs.freebsd.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.armv5
+    - name: Upload credentialfs.freebsd.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.armv5
-        asset_path: build/template-application-go.freebsd.armv5
+        asset_name: credentialfs.freebsd.armv5
+        asset_path: build/credentialfs.freebsd.armv5
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.armv6
+    - name: Upload credentialfs.freebsd.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.armv6
-        asset_path: build/template-application-go.freebsd.armv6
+        asset_name: credentialfs.freebsd.armv6
+        asset_path: build/credentialfs.freebsd.armv6
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.armv7
+    - name: Upload credentialfs.freebsd.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.armv7
-        asset_path: build/template-application-go.freebsd.armv7
+        asset_name: credentialfs.freebsd.armv7
+        asset_path: build/credentialfs.freebsd.armv7
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.freebsd.arm64
+    - name: Upload credentialfs.freebsd.arm64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.freebsd.arm64
-        asset_path: build/template-application-go.freebsd.arm64
+        asset_name: credentialfs.freebsd.arm64
+        asset_path: build/credentialfs.freebsd.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.x86
+    - name: Upload credentialfs.openbsd.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.x86
-        asset_path: build/template-application-go.openbsd.x86
+        asset_name: credentialfs.openbsd.x86
+        asset_path: build/credentialfs.openbsd.x86
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.amd64
+    - name: Upload credentialfs.openbsd.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.amd64
-        asset_path: build/template-application-go.openbsd.amd64
+        asset_name: credentialfs.openbsd.amd64
+        asset_path: build/credentialfs.openbsd.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.armv5
+    - name: Upload credentialfs.openbsd.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.armv5
-        asset_path: build/template-application-go.openbsd.armv5
+        asset_name: credentialfs.openbsd.armv5
+        asset_path: build/credentialfs.openbsd.armv5
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.armv6
+    - name: Upload credentialfs.openbsd.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.armv6
-        asset_path: build/template-application-go.openbsd.armv6
+        asset_name: credentialfs.openbsd.armv6
+        asset_path: build/credentialfs.openbsd.armv6
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.armv7
+    - name: Upload credentialfs.openbsd.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.armv7
-        asset_path: build/template-application-go.openbsd.armv7
+        asset_name: credentialfs.openbsd.armv7
+        asset_path: build/credentialfs.openbsd.armv7
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.openbsd.arm64
+    - name: Upload credentialfs.openbsd.arm64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.openbsd.arm64
-        asset_path: build/template-application-go.openbsd.arm64
+        asset_name: credentialfs.openbsd.arm64
+        asset_path: build/credentialfs.openbsd.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.x86
+    - name: Upload credentialfs.netbsd.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.x86
-        asset_path: build/template-application-go.netbsd.x86
+        asset_name: credentialfs.netbsd.x86
+        asset_path: build/credentialfs.netbsd.x86
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.amd64
+    - name: Upload credentialfs.netbsd.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.amd64
-        asset_path: build/template-application-go.netbsd.amd64
+        asset_name: credentialfs.netbsd.amd64
+        asset_path: build/credentialfs.netbsd.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.armv5
+    - name: Upload credentialfs.netbsd.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.armv5
-        asset_path: build/template-application-go.netbsd.armv5
+        asset_name: credentialfs.netbsd.armv5
+        asset_path: build/credentialfs.netbsd.armv5
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.armv6
+    - name: Upload credentialfs.netbsd.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.armv6
-        asset_path: build/template-application-go.netbsd.armv6
+        asset_name: credentialfs.netbsd.armv6
+        asset_path: build/credentialfs.netbsd.armv6
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.armv7
+    - name: Upload credentialfs.netbsd.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.armv7
-        asset_path: build/template-application-go.netbsd.armv7
+        asset_name: credentialfs.netbsd.armv7
+        asset_path: build/credentialfs.netbsd.armv7
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.netbsd.arm64
+    - name: Upload credentialfs.netbsd.arm64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.netbsd.arm64
-        asset_path: build/template-application-go.netbsd.arm64
+        asset_name: credentialfs.netbsd.arm64
+        asset_path: build/credentialfs.netbsd.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.plan9.x86
+    - name: Upload credentialfs.plan9.x86
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.plan9.x86
-        asset_path: build/template-application-go.plan9.x86
+        asset_name: credentialfs.plan9.x86
+        asset_path: build/credentialfs.plan9.x86
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.plan9.amd64
+    - name: Upload credentialfs.plan9.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.plan9.amd64
-        asset_path: build/template-application-go.plan9.amd64
+        asset_name: credentialfs.plan9.amd64
+        asset_path: build/credentialfs.plan9.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.plan9.armv5
+    - name: Upload credentialfs.plan9.armv5
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.plan9.armv5
-        asset_path: build/template-application-go.plan9.armv5
+        asset_name: credentialfs.plan9.armv5
+        asset_path: build/credentialfs.plan9.armv5
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.plan9.armv6
+    - name: Upload credentialfs.plan9.armv6
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.plan9.armv6
-        asset_path: build/template-application-go.plan9.armv6
+        asset_name: credentialfs.plan9.armv6
+        asset_path: build/credentialfs.plan9.armv6
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.plan9.armv7
+    - name: Upload credentialfs.plan9.armv7
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.plan9.armv7
-        asset_path: build/template-application-go.plan9.armv7
+        asset_name: credentialfs.plan9.armv7
+        asset_path: build/credentialfs.plan9.armv7
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.dragonfly.amd64
+    - name: Upload credentialfs.dragonfly.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.dragonfly.amd64
-        asset_path: build/template-application-go.dragonfly.amd64
+        asset_name: credentialfs.dragonfly.amd64
+        asset_path: build/credentialfs.dragonfly.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.solaris.amd64
+    - name: Upload credentialfs.solaris.amd64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.solaris.amd64
-        asset_path: build/template-application-go.solaris.amd64
+        asset_name: credentialfs.solaris.amd64
+        asset_path: build/credentialfs.solaris.amd64
         asset_content_type: application/octet-stream
 
-    - name: Upload template-application-go.aix.ppc64
+    - name: Upload credentialfs.aix.ppc64
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: template-application-go.aix.ppc64
-        asset_path: build/template-application-go.aix.ppc64
+        asset_name: credentialfs.aix.ppc64
+        asset_path: build/credentialfs.aix.ppc64
         asset_content_type: application/octet-stream
 
     #
     # packages
     #
 
-    # - name: Upload template-application-go-amd64.deb
+    # - name: Upload credentialfs-amd64.deb
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.amd64.deb
-    #     asset_path: build/template-application-go.amd64.deb
+    #     asset_name: credentialfs.amd64.deb
+    #     asset_path: build/credentialfs.amd64.deb
     #     asset_content_type: application/vnd.debian.binary-package
 
-    # - name: Upload template-application-go-x86_64.rpm
+    # - name: Upload credentialfs-x86_64.rpm
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.x86_64.rpm
-    #     asset_path: build/template-application-go.x86_64.rpm
+    #     asset_name: credentialfs.x86_64.rpm
+    #     asset_path: build/credentialfs.x86_64.rpm
     #     asset_content_type: application/x-rpm
 
-    # - name: Upload template-application-go-armel.deb
+    # - name: Upload credentialfs-armel.deb
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.armel.deb
-    #     asset_path: build/template-application-go.armel.deb
+    #     asset_name: credentialfs.armel.deb
+    #     asset_path: build/credentialfs.armel.deb
     #     asset_content_type: application/vnd.debian.binary-package
 
-    # - name: Upload template-application-go-armhf.deb
+    # - name: Upload credentialfs-armhf.deb
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.armhf.deb
-    #     asset_path: build/template-application-go.armhf.deb
+    #     asset_name: credentialfs.armhf.deb
+    #     asset_path: build/credentialfs.armhf.deb
     #     asset_content_type: application/vnd.debian.binary-package
 
-    # - name: Upload template-application-go-armhfp.rpm
+    # - name: Upload credentialfs-armhfp.rpm
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.armhfp.rpm
-    #     asset_path: build/template-application-go.armhfp.rpm
+    #     asset_name: credentialfs.armhfp.rpm
+    #     asset_path: build/credentialfs.armhfp.rpm
     #     asset_content_type: application/x-rpm
 
-    # - name: Upload template-application-go-arm64.deb
+    # - name: Upload credentialfs-arm64.deb
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.arm64.deb
-    #     asset_path: build/template-application-go.arm64.deb
+    #     asset_name: credentialfs.arm64.deb
+    #     asset_path: build/credentialfs.arm64.deb
     #     asset_content_type: application/vnd.debian.binary-package
 
-    # - name: Upload template-application-go-aarch64.rpm
+    # - name: Upload credentialfs-aarch64.rpm
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.aarch64.rpm
-    #     asset_path: build/template-application-go.aarch64.rpm
+    #     asset_name: credentialfs.aarch64.rpm
+    #     asset_path: build/credentialfs.aarch64.rpm
     #     asset_content_type: application/x-rpm
 
-    # - name: Upload template-application-go-arm64.msi
+    # - name: Upload credentialfs-arm64.msi
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.arm64.msi
-    #     asset_path: build/template-application-go.arm64.msi
+    #     asset_name: credentialfs.arm64.msi
+    #     asset_path: build/credentialfs.arm64.msi
     #     asset_content_type: application/x-msdownload
 
-    # - name: Upload template-application-go-amd64.msi
+    # - name: Upload credentialfs-amd64.msi
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.amd64.msi
-    #     asset_path: build/template-application-go.amd64.msi
+    #     asset_name: credentialfs.amd64.msi
+    #     asset_path: build/credentialfs.amd64.msi
     #     asset_content_type: application/x-msdownload
 
-    # - name: Upload template-application-go-arm64.pkg
+    # - name: Upload credentialfs-arm64.pkg
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.arm64.pkg
-    #     asset_path: build/template-application-go.arm64.pkg
+    #     asset_name: credentialfs.arm64.pkg
+    #     asset_path: build/credentialfs.arm64.pkg
     #     asset_content_type: application/octet-stream
 
-    # - name: Upload template-application-go-amd64.pkg
+    # - name: Upload credentialfs-amd64.pkg
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
     #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_name: template-application-go.amd64.pkg
-    #     asset_path: build/template-application-go.amd64.pkg
+    #     asset_name: credentialfs.amd64.pkg
+    #     asset_path: build/credentialfs.amd64.pkg
     #     asset_content_type: application/octet-stream

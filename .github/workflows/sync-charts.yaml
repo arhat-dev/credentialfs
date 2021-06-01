@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        path: template-application-go
+        path: credentialfs
 
     - uses: actions/checkout@v2
       with:
@@ -29,11 +29,11 @@ jobs:
 
     - name: Update charts
       run: |
-        for chart in template-application-go/cicd/deploy/charts/*; do
-          chart="${chart#template-application-go/cicd/deploy/charts/}"
+        for chart in credentialfs/cicd/deploy/charts/*; do
+          chart="${chart#credentialfs/cicd/deploy/charts/}"
           echo "Updating chart ${chart}..."
           rm -rf "helm-charts/charts/${chart}"
-          mv "template-application-go/cicd/deploy/charts/${chart}" "helm-charts/charts/${chart}"
+          mv "credentialfs/cicd/deploy/charts/${chart}" "helm-charts/charts/${chart}"
           echo "Chart ${chart} updated"
         done
 
@@ -41,5 +41,5 @@ jobs:
       run: |
         cd helm-charts
         git add --all .
-        git commit -m "Update charts from template-application-go"
+        git commit -m "Update charts from credentialfs"
         git push

@@ -1,7 +1,13 @@
+# arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d
+## explicit
+arhat.dev/bitwardenapi/bwinternal
 # arhat.dev/pkg v0.5.6
 ## explicit
 arhat.dev/pkg/envhelper
 arhat.dev/pkg/log
+# github.com/deepmap/oapi-codegen v1.7.0
+github.com/deepmap/oapi-codegen/pkg/runtime
+github.com/deepmap/oapi-codegen/pkg/types
 # github.com/hanwen/go-fuse/v2 v2.1.0
 ## explicit
 github.com/hanwen/go-fuse/v2/fs
@@ -11,6 +17,11 @@ github.com/hanwen/go-fuse/v2/internal/utimens
 github.com/hanwen/go-fuse/v2/splice
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
+## explicit
+github.com/keybase/go-keychain
+# github.com/pkg/errors v0.9.1
+github.com/pkg/errors
 # github.com/spf13/cobra v1.1.3
 ## explicit
 github.com/spf13/cobra

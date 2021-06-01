@@ -18,12 +18,17 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"arhat.dev/pkg/log"
 	"github.com/spf13/cobra"
 
 	"arhat.dev/credentialfs/pkg/conf"
 	"arhat.dev/credentialfs/pkg/constant"
+	"arhat.dev/credentialfs/pkg/fs"
+
+	// password managers
+	_ "arhat.dev/credentialfs/pkg/pm/bitwarden"
 )
 
 func NewRootCmd() *cobra.Command {
@@ -69,5 +74,17 @@ func run(appCtx context.Context, config *conf.Config) error {
 	logger := log.Log.WithName("app")
 
 	_ = logger
+	mgr, err := fs.NewManager(config.FS)
+	if err != nil {
+		return fmt.Errorf("failed to create fs manager: %w", err)
+	}
+
+	err = mgr.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start fs manager: %w", err)
+	}
+
+	<-appCtx.Done()
+
 	return nil
 }

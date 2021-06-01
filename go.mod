@@ -3,8 +3,10 @@ module arhat.dev/credentialfs
 go 1.16
 
 require (
+	arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d
 	arhat.dev/pkg v0.5.6
 	github.com/hanwen/go-fuse/v2 v2.1.0
+	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b

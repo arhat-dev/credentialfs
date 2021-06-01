@@ -23,18 +23,15 @@ import (
 
 type Config struct {
 	App AppConfig `json:"app" yaml:"app"`
+
+	FS FilesystemConfig `json:"fs" yaml:"fs"`
 }
 
 type AppConfig struct {
 	Log log.ConfigSet `json:"log" yaml:"log"`
-
-	Foo string `json:"foo" yaml:"foo"`
 }
 
 func FlagsForAppConfig(prefix string, config *AppConfig) *pflag.FlagSet {
 	fs := pflag.NewFlagSet("app", pflag.ExitOnError)
-
-	fs.StringVar(&config.Foo, prefix+"foo", "bar", "set value of foo")
-
 	return fs
 }

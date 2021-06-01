@@ -1,0 +1,951 @@
+name: Build
+
+# yamllint disable-line rule:truthy
+on:
+  check_run:
+    types:
+    - rerequested
+    - requested_action
+  pull_request:
+    paths-ignore:
+    - docs/**
+    - cicd/deploy/charts/**
+    - README.md
+    branches:
+    - master
+    - "!deps/**"
+  push:
+    paths-ignore:
+    - docs/**
+    - cicd/deploy/charts/**
+    - README.md
+    branches:
+    - master
+    tags:
+    - v*
+
+env:
+  GO111MODULE: "on"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-on-linux:
+    if: contains(github.head_ref, 'deps/') == false
+    runs-on: ubuntu-latest
+    steps:
+    - uses: kolpav/purge-artifacts-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        expire-in: 30m
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16.x
+
+    - name: Build
+      run: |
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.linux.all
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.freebsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.netbsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.openbsd.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.plan9.all TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.solaris.amd64 TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.aix.ppc64 TAGS=''
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.dragonfly.amd64 TAGS=''
+
+    # - name: Package
+    #   run: |
+    #     make package.template-application-go.linux.all
+
+    - name: Hash
+      run: |
+        os_list="linux freebsd netbsd openbsd plan9 aix solaris dragonfly"
+
+        cd build
+        for os in ${os_list}; do
+          sha256sum template-application-go.${os}* > sha256.${os}.txt
+          sha512sum template-application-go.${os}* > sha512.${os}.txt
+          md5sum template-application-go.${os}* > md5.${os}.txt
+        done
+        cd -
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-on-linux
+        path: build
+
+  # build-on-linux-cgo:
+  #   if: contains(github.head_ref, 'deps/') == false
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: arhatdev/builder-go:debian
+  #   steps:
+  #   - name: Install docker-cli in Container
+  #     run: |
+  #       apt update
+  #       apt install -y apt-transport-https ca-certificates curl software-properties-common lsb-release
+  #       curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+  #       add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+
+  #       apt update
+  #       apt install -y docker-ce-cli
+  #       docker -v
+
+  #   - name: Run in Host
+  #     uses: arhat-dev/actions-hostrun@main
+  #     with:
+  #       run: |
+  #         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  #         sudo apt update
+  #         sudo apt install -y qemu-user-static
+
+  #   - uses: actions/checkout@v2
+  #   - name: Install Extra Packages
+  #     run: |
+  #       apt update
+  #       apt install -y python3-distutils=3.7.3-1 python3-lib2to3=3.7.3-1 python3=3.7.3-1
+
+  #   - name: Build
+  #     run: |
+  #       # may need to install some packages during build process, do not run in parallel
+  #       CGO_ENABLED=1 make template-application-go.linux.all
+
+  #   - name: Package
+  #     run: |
+  #       make package.template-application-go.linux.all
+
+  #   - name: Hash
+  #     run: |
+  #       cd build
+  #       sha256sum template-application-go.linux* > sha256.linux.txt
+  #       sha512sum template-application-go.linux* > sha512.linux.txt
+  #       md5sum template-application-go.linux* > md5.linux.txt
+  #       cd -
+
+  #   - name: Upload Artifact
+  #     uses: actions/upload-artifact@v2
+  #     with:
+  #       name: build-on-linux-cgo
+  #       path: build
+
+  build-on-darwin:
+    if: contains(github.head_ref, 'deps/') == false
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16.x
+
+    - name: Build
+      run: |
+        CGO_ENABLED=1 make template-application-go.darwin.amd64
+        CGO_ENABLED=0 make template-application-go.darwin.arm64
+
+    # # TODO: Support macos packaging
+    # - name: Package
+    #   run: |
+    #     make package.template-application-go.darwin.all
+
+    - name: Install md5sum
+      run: |
+        brew install md5sha1sum
+
+    - name: Hash
+      run: |
+        cd build
+        shasum -a 256 template-application-go.darwin* > sha256.darwin.txt
+        shasum -a 512 template-application-go.darwin* > sha512.darwin.txt
+        md5sum template-application-go.darwin* > md5.darwin.txt
+        cd -
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-on-darwin
+        path: build
+
+  build-on-windows:
+    if: contains(github.head_ref, 'deps/') == false
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16.x
+
+    - name: Build
+      run: |
+        CGO_ENABLED=0 make -j$(nproc --all) template-application-go.windows.all
+
+    # # TODO: Support windows packaging
+    # - name: Package
+    #   run: |
+    #     make package.template-application-go.windows.all
+
+    - name: Hash
+      run: |
+        cd build
+        sha256sum template-application-go.windows* > sha256.windows.txt
+        sha512sum template-application-go.windows* > sha512.windows.txt
+        md5sum template-application-go.windows* > md5.windows.txt
+        cd -
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-on-windows
+        path: build
+
+  release:
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    needs:
+    - build-on-linux
+    - build-on-windows
+    - build-on-darwin
+    # - build-on-linux-cgo
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download linux builds
+      uses: actions/download-artifact@v2
+      with:
+        name: build-on-linux
+        path: build
+
+    - name: Download windows builds
+      uses: actions/download-artifact@v2
+      with:
+        name: build-on-windows
+        path: build
+
+    - name: Download darwin builds
+      uses: actions/download-artifact@v2
+      with:
+        name: build-on-darwin
+        path: build
+
+    # - name: Download linux cgo builds
+    #   uses: actions/download-artifact@v2
+    #   with:
+    #     name: build-on-linux-cgo
+    #     path: build
+
+    - name: Extract tag name
+      id: extract_tag
+      run: |
+        echo "::set-output name=tag::$(echo ${GITHUB_REF#refs/tags/})"
+
+    - name: Build changelog
+      id: build_changelog
+      uses: mikepenz/release-changelog-builder-action@v1.8.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: ${{ github.ref }}
+        draft: true
+        prerelease: false
+        body: |
+          # Release Notes
+
+          ## Features
+
+          - Add foo support #issue-ref
+          - Add bar support #issue-ref
+
+          ## Bug fixes
+
+          - Fixed foo #issue-ref
+          - Fixed bar #issue-ref #pr-ref
+
+          ## Breaking Changes
+
+          - Foo ...
+          - Bar ...
+
+          ## Changes since `${{ steps.build_changelog.outputs.fromTag }}`
+
+          ${{ steps.build_changelog.outputs.changelog }}
+
+          ## Images
+
+          - `docker.io/arhatdev/template-application-go:${{ steps.extract_tag.outputs.tag }}`
+          - `ghcr.io/arhat-dev/template-application-go:${{ steps.extract_tag.outputs.tag }}`
+
+          ## Helm Charts
+
+          - Have a look at [ArtifactHub](https://artifacthub.io/packages/helm/arhatdev/template-application-go)
+          - Checkout chart [source code](https://github.com/arhat-dev/template-application-go/blob/${{ steps.extract_tag.outputs.tag }}/cicd/deploy/charts/template-application-go)
+
+    #
+    # checksums
+    #
+    - name: Create Checksum Files
+      run: |
+        files="sha256 sha512 md5"
+        os_list="darwin windows freebsd netbsd openbsd plan9 aix solaris dragonfly"
+
+        for f in ${files}; do
+          printf "# Linux builds\n\n" > "build/${f}.txt"
+          cat build/${f}.linux.txt >> "build/${f}.txt"
+
+          for os in ${os_list}; do
+            printf "\n# ${os} builds\n\n" >> "build/${f}.txt"
+            cat build/${f}.${os}.txt >> "build/${f}.txt"
+          done
+        done
+
+    - name: Upload sha256
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: sha256.txt
+        asset_path: build/sha256.txt
+        asset_content_type: text/plain
+
+    - name: Upload sha512
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: sha512.txt
+        asset_path: build/sha512.txt
+        asset_content_type: text/plain
+
+    - name: Upload md5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: md5.txt
+        asset_path: build/md5.txt
+        asset_content_type: text/plain
+
+    - name: Upload template-application-go.darwin.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.darwin.amd64
+        asset_path: build/template-application-go.darwin.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.darwin.arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.darwin.arm64
+        asset_path: build/template-application-go.darwin.arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.windows.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.windows.x86.exe
+        asset_path: build/template-application-go.windows.x86.exe
+        asset_content_type: application/x-ms-dos-executable
+
+    - name: Upload template-application-go.windows.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.windows.amd64.exe
+        asset_path: build/template-application-go.windows.amd64.exe
+        asset_content_type: application/x-ms-dos-executable
+
+    - name: Upload template-application-go.windows.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.windows.armv5.exe
+        asset_path: build/template-application-go.windows.armv5.exe
+        asset_content_type: application/x-ms-dos-executable
+
+    - name: Upload template-application-go.windows.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.windows.armv6.exe
+        asset_path: build/template-application-go.windows.armv6.exe
+        asset_content_type: application/x-ms-dos-executable
+
+    - name: Upload template-application-go.windows.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.windows.armv7.exe
+        asset_path: build/template-application-go.windows.armv7.exe
+        asset_content_type: application/x-ms-dos-executable
+
+    - name: Upload template-application-go.linux.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.x86
+        asset_path: build/template-application-go.linux.x86
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.amd64
+        asset_path: build/template-application-go.linux.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.armv5
+        asset_path: build/template-application-go.linux.armv5
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.armv6
+        asset_path: build/template-application-go.linux.armv6
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.armv7
+        asset_path: build/template-application-go.linux.armv7
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.arm64
+        asset_path: build/template-application-go.linux.arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.ppc64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.ppc64
+        asset_path: build/template-application-go.linux.ppc64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.ppc64le
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.ppc64le
+        asset_path: build/template-application-go.linux.ppc64le
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.s390x
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.s390x
+        asset_path: build/template-application-go.linux.s390x
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mips
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mips
+        asset_path: build/template-application-go.linux.mips
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mipshf
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mipshf
+        asset_path: build/template-application-go.linux.mipshf
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mipsle
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mipsle
+        asset_path: build/template-application-go.linux.mipsle
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mipslehf
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mipslehf
+        asset_path: build/template-application-go.linux.mipslehf
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mips64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mips64
+        asset_path: build/template-application-go.linux.mips64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mips64hf
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mips64hf
+        asset_path: build/template-application-go.linux.mips64hf
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mips64le
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mips64le
+        asset_path: build/template-application-go.linux.mips64le
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.linux.mips64lehf
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.linux.mips64lehf
+        asset_path: build/template-application-go.linux.mips64lehf
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.x86
+        asset_path: build/template-application-go.freebsd.x86
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.amd64
+        asset_path: build/template-application-go.freebsd.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.armv5
+        asset_path: build/template-application-go.freebsd.armv5
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.armv6
+        asset_path: build/template-application-go.freebsd.armv6
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.armv7
+        asset_path: build/template-application-go.freebsd.armv7
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.freebsd.arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.freebsd.arm64
+        asset_path: build/template-application-go.freebsd.arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.x86
+        asset_path: build/template-application-go.openbsd.x86
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.amd64
+        asset_path: build/template-application-go.openbsd.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.armv5
+        asset_path: build/template-application-go.openbsd.armv5
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.armv6
+        asset_path: build/template-application-go.openbsd.armv6
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.armv7
+        asset_path: build/template-application-go.openbsd.armv7
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.openbsd.arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.openbsd.arm64
+        asset_path: build/template-application-go.openbsd.arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.x86
+        asset_path: build/template-application-go.netbsd.x86
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.amd64
+        asset_path: build/template-application-go.netbsd.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.armv5
+        asset_path: build/template-application-go.netbsd.armv5
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.armv6
+        asset_path: build/template-application-go.netbsd.armv6
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.armv7
+        asset_path: build/template-application-go.netbsd.armv7
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.netbsd.arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.netbsd.arm64
+        asset_path: build/template-application-go.netbsd.arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.plan9.x86
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.plan9.x86
+        asset_path: build/template-application-go.plan9.x86
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.plan9.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.plan9.amd64
+        asset_path: build/template-application-go.plan9.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.plan9.armv5
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.plan9.armv5
+        asset_path: build/template-application-go.plan9.armv5
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.plan9.armv6
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.plan9.armv6
+        asset_path: build/template-application-go.plan9.armv6
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.plan9.armv7
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.plan9.armv7
+        asset_path: build/template-application-go.plan9.armv7
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.dragonfly.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.dragonfly.amd64
+        asset_path: build/template-application-go.dragonfly.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.solaris.amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.solaris.amd64
+        asset_path: build/template-application-go.solaris.amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload template-application-go.aix.ppc64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_name: template-application-go.aix.ppc64
+        asset_path: build/template-application-go.aix.ppc64
+        asset_content_type: application/octet-stream
+
+    #
+    # packages
+    #
+
+    # - name: Upload template-application-go-amd64.deb
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.amd64.deb
+    #     asset_path: build/template-application-go.amd64.deb
+    #     asset_content_type: application/vnd.debian.binary-package
+
+    # - name: Upload template-application-go-x86_64.rpm
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.x86_64.rpm
+    #     asset_path: build/template-application-go.x86_64.rpm
+    #     asset_content_type: application/x-rpm
+
+    # - name: Upload template-application-go-armel.deb
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.armel.deb
+    #     asset_path: build/template-application-go.armel.deb
+    #     asset_content_type: application/vnd.debian.binary-package
+
+    # - name: Upload template-application-go-armhf.deb
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.armhf.deb
+    #     asset_path: build/template-application-go.armhf.deb
+    #     asset_content_type: application/vnd.debian.binary-package
+
+    # - name: Upload template-application-go-armhfp.rpm
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.armhfp.rpm
+    #     asset_path: build/template-application-go.armhfp.rpm
+    #     asset_content_type: application/x-rpm
+
+    # - name: Upload template-application-go-arm64.deb
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.arm64.deb
+    #     asset_path: build/template-application-go.arm64.deb
+    #     asset_content_type: application/vnd.debian.binary-package
+
+    # - name: Upload template-application-go-aarch64.rpm
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.aarch64.rpm
+    #     asset_path: build/template-application-go.aarch64.rpm
+    #     asset_content_type: application/x-rpm
+
+    # - name: Upload template-application-go-arm64.msi
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.arm64.msi
+    #     asset_path: build/template-application-go.arm64.msi
+    #     asset_content_type: application/x-msdownload
+
+    # - name: Upload template-application-go-amd64.msi
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.amd64.msi
+    #     asset_path: build/template-application-go.amd64.msi
+    #     asset_content_type: application/x-msdownload
+
+    # - name: Upload template-application-go-arm64.pkg
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.arm64.pkg
+    #     asset_path: build/template-application-go.arm64.pkg
+    #     asset_content_type: application/octet-stream
+
+    # - name: Upload template-application-go-amd64.pkg
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_name: template-application-go.amd64.pkg
+    #     asset_path: build/template-application-go.amd64.pkg
+    #     asset_content_type: application/octet-stream

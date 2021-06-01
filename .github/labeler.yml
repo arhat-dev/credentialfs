@@ -1,0 +1,13 @@
+docs:
+- docs/**
+- README.md
+
+ci:
+- .github/**
+- cicd/gitlab/**
+- .gitlab-ci.yml
+
+dependency:
+- go.mod
+- go.sum
+- vendor/**

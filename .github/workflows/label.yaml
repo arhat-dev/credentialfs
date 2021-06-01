@@ -1,0 +1,17 @@
+name: Label
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    branches:
+    - master
+    - "!deps/**"
+
+jobs:
+  label:
+    if: contains(github.head_ref, 'deps/') == false
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/labeler@v3
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}

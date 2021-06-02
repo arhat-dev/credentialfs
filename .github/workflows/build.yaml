@@ -144,7 +144,7 @@ jobs:
     - name: Build
       run: |
         CGO_ENABLED=1 make credentialfs.darwin.amd64
-        CGO_ENABLED=0 make credentialfs.darwin.arm64
+        # CGO_ENABLED=0 make credentialfs.darwin.arm64
 
     # # TODO: Support macos packaging
     # - name: Package

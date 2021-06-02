@@ -39,7 +39,7 @@ func NewManager(ctx context.Context, config conf.FilesystemConfig) (*Manager, er
 
 func (m *Manager) Start() error {
 	for _, b := range m.fs {
-		_, _ = fmt.Fprintf(os.Stdout, "Trying to login to %q", b.pm.ConfigName())
+		_, _ = fmt.Fprintf(os.Stdout, "Trying to login to %q\n", b.pm.ConfigName())
 
 		err := b.pm.Login(func() (username, password string, err error) {
 			_, _ = fmt.Fprintf(os.Stdout, "Please enter your username for pm %q: ", b.pm.ConfigName())
@@ -54,12 +54,24 @@ func (m *Manager) Start() error {
 				println(err.Error())
 			}
 
+			_, _ = fmt.Fprintf(os.Stdout, "\n")
+
 			password = string(pwd)
 
 			return
 		})
 		if err != nil {
 			return err
+		}
+
+		for _, mount := range b.mounts {
+			data, err := b.pm.Get(mount.From)
+			if err != nil {
+				return fmt.Errorf("failed to download %q from %q: %w", mount.From, b.pm.ConfigName(), err)
+			}
+
+			// TODO: make inode and files
+			_ = data
 		}
 
 		_, _ = fmt.Fprintf(os.Stdout, "pm %q Login ok\n", b.pm.ConfigName())

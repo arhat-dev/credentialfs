@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 
 	bw "arhat.dev/bitwardenapi/bwinternal"
@@ -29,26 +32,34 @@ func init() {
 				return nil, fmt.Errorf("unexpected non bitwarden config: %T", config)
 			}
 
+			u, err := url.Parse(c.EndpointURL)
+			if err != nil {
+				return nil, fmt.Errorf("invalid endpoint url: %w", err)
+			}
+
+			driver := &Driver{
+				ctx:                ctx,
+				client:             nil,
+				endpointPathPrefix: u.Path,
+
+				configName: configName,
+				saveLogin:  c.SaveLogin,
+
+				attachments: &sync.Map{},
+
+				mu: &sync.RWMutex{},
+			}
 			client, err := bw.NewClient(
 				c.EndpointURL,
-				bw.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-					req.Header.Set("Device-Type", getDeviceType())
-					req.Header.Set("Accept", "application/json")
-					return nil
-				}),
+				bw.WithRequestEditorFn(driver.fixRequest),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create bitwarden client: %w", err)
 			}
 
-			return &Driver{
-				ctx:        ctx,
-				client:     client,
-				configName: configName,
-				saveLogin:  c.SaveLogin,
+			driver.client = client
 
-				mu: &sync.Mutex{},
-			}, nil
+			return driver, nil
 		},
 		func() interface{} {
 			return &Config{}
@@ -63,21 +74,54 @@ type Config struct {
 
 var _ pm.Interface = (*Driver)(nil)
 
+type attachmentKey struct {
+	// decrypt(Item Name)
+	ItemName string
+
+	// decrypt(Attachments FileName)
+	Filename string
+}
+
 type Driver struct {
-	ctx    context.Context
-	client *bw.Client
+	ctx context.Context
+
+	client             *bw.Client
+	endpointPathPrefix string
 
 	configName string
 	saveLogin  bool
 
-	accessToken    string
+	// jwt token
+	accessToken string
+
+	// user derived from access token
+	user *bitwardenUser
+
 	refreshToken   string
 	preLoginKey    []byte
 	hashedPassword string
 	encKey         []byte
+	hmacKey        []byte
 	encPrivateKey  []byte
 
-	mu *sync.Mutex
+	// key: attachmentKey
+	// value: url to get the attachment
+	attachments *sync.Map
+
+	mu *sync.RWMutex
+}
+
+func (d *Driver) fixRequest(ctx context.Context, req *http.Request) error {
+	req.Header.Set("Device-Type", getDeviceType())
+	req.Header.Set("Accept", "application/json")
+
+	d.mu.RLock()
+	if len(d.accessToken) != 0 {
+		req.Header.Set("Authorization", "Bearer "+d.accessToken)
+	}
+	d.mu.RUnlock()
+
+	return nil
 }
 
 func (d *Driver) DriverName() string {
@@ -158,11 +202,48 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 		}
 	}
 
-	return nil
+	d.mu.RLock()
+	encKey := d.encKey
+	hmacKey := d.hmacKey
+	d.mu.RUnlock()
+
+	return d.sync(encKey, hmacKey)
 }
 
 func (d *Driver) Get(key string) ([]byte, error) {
-	return nil, fmt.Errorf("unimplemented")
+	parts := strings.SplitN(key, "/", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid key %q", key)
+	}
+
+	urlVal, ok := d.attachments.Load(attachmentKey{
+		ItemName: parts[0],
+		Filename: parts[1],
+	})
+	if !ok {
+		return nil, fmt.Errorf("credential %q not found", key)
+	}
+
+	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, urlVal.(string), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = d.fixRequest(d.ctx, req)
+
+	resp, err := d.client.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request %q: %w", key, err)
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read attachment data: %w", err)
+	}
+
+	return data, nil
 }
 
 func (d *Driver) Update(key string, data []byte) error {

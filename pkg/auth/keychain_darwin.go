@@ -55,6 +55,8 @@ func SaveLogin(pmDriver, configName, username, password string) error {
 			if err != nil {
 				return fmt.Errorf("keychain: failed to update login: %w", err)
 			}
+
+			return nil
 		}
 
 		return fmt.Errorf("keychain: failed to add login: %w", err)

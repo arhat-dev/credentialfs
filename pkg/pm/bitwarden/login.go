@@ -1,6 +1,7 @@
 package bitwarden
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -11,18 +12,32 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	bw "arhat.dev/bitwardenapi/bwinternal"
 	"github.com/deepmap/oapi-codegen/pkg/types"
 	"golang.org/x/crypto/pbkdf2"
 )
 
+func (d *Driver) prependPath(p string) bw.RequestEditorFn {
+	return func(ctx context.Context, req *http.Request) error {
+		req.URL.Path = strings.TrimPrefix(req.URL.Path, d.endpointPathPrefix)
+		req.URL.Path = path.Join(d.endpointPathPrefix, p, req.URL.Path)
+		if !strings.HasPrefix(req.URL.Path, "/") {
+			req.URL.Path = "/" + req.URL.Path
+		}
+
+		req.Header.Set("Path", req.URL.RequestURI())
+		return nil
+	}
+}
+
 func (d *Driver) login(password, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	resp, err := d.client.PostAccountsPrelogin(d.ctx, bw.PostAccountsPreloginJSONRequestBody{
 		Email: types.Email(email),
-	})
+	}, d.prependPath("api"))
 	if err != nil {
 		return fmt.Errorf("failed to request prelogin: %w", err)
 	}
@@ -43,7 +58,7 @@ func (d *Driver) login(password, email string) error {
 		kdfIterationsPtr = pr.JSON200.KdfIterations
 	}
 
-	key, err := d.makeKey(password, email, kdfTypePtr, kdfIterationsPtr)
+	preLoginKey, err := makeKey(password, email, kdfTypePtr, kdfIterationsPtr)
 	if err != nil {
 		return fmt.Errorf("failed to make kdf key: %w", err)
 	}
@@ -57,15 +72,14 @@ func (d *Driver) login(password, email string) error {
 	values.Set("deviceName", "credentialfs")
 	values.Set("deviceType", getDeviceType())
 
-	hashedPassword := d.hashPassword(password, key)
+	hashedPassword := hashPassword(password, preLoginKey)
 	values.Set("password", hashedPassword)
 
 	loginURL, err := url.Parse(d.client.Server)
 	if err != nil {
 		return fmt.Errorf("failed to bitwarden server url: %w", err)
 	}
-	parent := path.Dir(strings.TrimSuffix(loginURL.Path, "/"))
-	loginURL.Path = path.Join(parent, "identity/connect/token")
+	loginURL.Path = path.Join(loginURL.Path, "identity/connect/token")
 
 	req, err := http.NewRequestWithContext(
 		d.ctx,
@@ -104,7 +118,7 @@ func (d *Driver) login(password, email string) error {
 		// fields below need special parse
 		ResetMasterPassword bool       `json:"resetmasterpassword"`
 		PrivateKey          string     `json:"privatekey"`
-		Key                 string     `json:"key"`
+		EncKey              string     `json:"key"`
 		TwoFactorToken      string     `json:"twofactortoken"`
 		Kdf                 bw.KdfType `json:"kdf"`
 		KdfIterations       int        `json:"kdfiterations"`
@@ -123,65 +137,45 @@ func (d *Driver) login(password, email string) error {
 
 	respBody, err = json.Marshal(finalRespData)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid login response body: %w", err)
 	}
 
 	data := &identityTokenResp{}
 	err = json.Unmarshal(respBody, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode identity token: %w", err)
+	}
+
+	user, err := parseUserFromAccessToken(data.AccessToken)
+	if err != nil {
+		return fmt.Errorf("failed to parse user info from access token: %w", err)
+	}
+
+	encKey, hmacKey, err := parseEncKey(data.EncKey, preLoginKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode encryption key: %w", err)
 	}
 
 	d.update(func() {
 		d.accessToken = data.AccessToken
+		d.user = user
+
 		d.refreshToken = data.RefreshToken
 
-		d.preLoginKey = key
+		d.preLoginKey = preLoginKey
 		d.hashedPassword = hashedPassword
 
-		d.encKey = []byte(data.Key)
+		d.encKey, d.hmacKey = encKey, hmacKey
 		d.encPrivateKey = []byte(data.PrivateKey)
 	})
 
 	return nil
 }
 
-func (d *Driver) hashPassword(password string, key []byte) string {
+func hashPassword(password string, key []byte) string {
 	return base64.StdEncoding.EncodeToString(
 		pbkdf2.Key(key, []byte(password), 1, sha256.Size, sha256.New),
 	)
-}
-
-func (d *Driver) makeKey(password, email string, kdfTypePtr *bw.KdfType, kdfIterationsPtr *int32) ([]byte, error) {
-	const (
-		// https://github.com/bitwarden/jslib/blob/master/src/enums/kdfType.ts
-		pbkdf2SHA256            bw.KdfType = 0
-		minimumPBKDF2Iterations int        = 5000
-	)
-
-	var (
-		kdfType       bw.KdfType = pbkdf2SHA256
-		kdfIterations            = minimumPBKDF2Iterations
-	)
-
-	if kdfIterationsPtr != nil {
-		kdfIterations = int(*kdfIterationsPtr)
-	}
-
-	if kdfTypePtr != nil {
-		kdfType = *kdfTypePtr
-	}
-
-	switch kdfType {
-	case pbkdf2SHA256:
-		if kdfIterations < minimumPBKDF2Iterations {
-			return nil, fmt.Errorf("pbkdf2 iteration minimum is %d", minimumPBKDF2Iterations)
-		}
-
-		return pbkdf2.Key([]byte(password), []byte(email), kdfIterations, sha256.Size, sha256.New), nil
-	default:
-		return nil, fmt.Errorf("unknown kdf")
-	}
 }
 
 func getDeviceType() string {
@@ -197,4 +191,35 @@ func getDeviceType() string {
 	default:
 		return "14" /* Unknown browser */
 	}
+}
+
+type bitwardenUser struct {
+	UserID        string `json:"sub"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Premium       bool   `json:"premium"`
+	Name          string `json:"name"`
+	Issuer        string `json:"iss"`
+	ExpireAt      int64  `json:"exp"` // unix time seconds (UTC)
+}
+
+// nolint:unused
+func (u *bitwardenUser) needToRefreshToken() bool {
+	return time.Unix(u.ExpireAt, 0).Before(time.Now())
+}
+
+func parseUserFromAccessToken(accessToken string) (*bitwardenUser, error) {
+	parts := strings.SplitN(accessToken, ".", 3)
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid access token")
+	}
+
+	data, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid jwt encoded user: %w", err)
+	}
+
+	user := &bitwardenUser{}
+	err = json.Unmarshal(data, user)
+	return user, err
 }

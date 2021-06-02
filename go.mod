@@ -10,6 +10,7 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
+	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/sys v0.0.0-20210601080250-7ecdf8ef093b // indirect
 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56

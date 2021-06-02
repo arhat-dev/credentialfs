@@ -82,6 +82,14 @@ type attachmentKey struct {
 	Filename string
 }
 
+type attachmentValue struct {
+	// plaintext
+	URL string
+
+	// decrypted attachment key or org key
+	Key *symmetricKey
+}
+
 type Driver struct {
 	ctx context.Context
 
@@ -100,8 +108,7 @@ type Driver struct {
 	refreshToken   string
 	preLoginKey    []byte
 	hashedPassword string
-	encKey         []byte
-	hmacKey        []byte
+	encKey         *symmetricKey
 	encPrivateKey  []byte
 
 	// key: attachmentKey
@@ -204,10 +211,9 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 
 	d.mu.RLock()
 	encKey := d.encKey
-	hmacKey := d.hmacKey
 	d.mu.RUnlock()
 
-	return d.sync(encKey, hmacKey)
+	return d.sync(encKey)
 }
 
 func (d *Driver) Get(key string) ([]byte, error) {
@@ -216,7 +222,7 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid key %q", key)
 	}
 
-	urlVal, ok := d.attachments.Load(attachmentKey{
+	specVal, ok := d.attachments.Load(attachmentKey{
 		ItemName: parts[0],
 		Filename: parts[1],
 	})
@@ -224,7 +230,8 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("credential %q not found", key)
 	}
 
-	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, urlVal.(string), nil)
+	spec := specVal.(*attachmentValue)
+	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, spec.URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -242,6 +249,13 @@ func (d *Driver) Get(key string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read attachment data: %w", err)
 	}
+
+	// TODO: decrypt data with key
+
+	// data, err = decryptData(data, spec.Key)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
+	// }
 
 	return data, nil
 }

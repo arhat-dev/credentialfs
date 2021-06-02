@@ -58,7 +58,7 @@ func (d *Driver) login(password, email string) error {
 		kdfIterationsPtr = pr.JSON200.KdfIterations
 	}
 
-	preLoginKey, err := makeKey(password, email, kdfTypePtr, kdfIterationsPtr)
+	preLoginKey, err := makePreloginKey(password, email, kdfTypePtr, kdfIterationsPtr)
 	if err != nil {
 		return fmt.Errorf("failed to make kdf key: %w", err)
 	}
@@ -151,7 +151,7 @@ func (d *Driver) login(password, email string) error {
 		return fmt.Errorf("failed to parse user info from access token: %w", err)
 	}
 
-	encKey, hmacKey, err := parseEncKey(data.EncKey, preLoginKey)
+	encKey, err := parseSymmetricKey(data.EncKey, &symmetricKey{key: preLoginKey})
 	if err != nil {
 		return fmt.Errorf("failed to decode encryption key: %w", err)
 	}
@@ -165,7 +165,7 @@ func (d *Driver) login(password, email string) error {
 		d.preLoginKey = preLoginKey
 		d.hashedPassword = hashedPassword
 
-		d.encKey, d.hmacKey = encKey, hmacKey
+		d.encKey = encKey
 		d.encPrivateKey = []byte(data.PrivateKey)
 	})
 

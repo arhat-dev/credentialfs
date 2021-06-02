@@ -21,22 +21,22 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-type encType int
+type suiteKind int
 
 // https://github.com/bitwarden/jslib/blob/master/src/enums/encryptionType.ts
 // nolint:revive
 const (
-	AES_256_CBC_B64                      encType = 0
-	AES_128_CBC_HMAC_SHA256_B64          encType = 1
-	AES_256_CBC_HMAC_SHA256_B64          encType = 2
-	RSA_2048_OAEP_SHA256_B64             encType = 3
-	RSA_2048_OAEP_SHA1_B64               encType = 4
-	RSA_2048_OAEP_SHA256_HMAC_SHA256_B64 encType = 5
-	RSA_2048_OAEP_SHA1_HMAC_SHA256_B64   encType = 6
+	AES_256_CBC_B64                      suiteKind = 0
+	AES_128_CBC_HMAC_SHA256_B64          suiteKind = 1
+	AES_256_CBC_HMAC_SHA256_B64          suiteKind = 2
+	RSA_2048_OAEP_SHA256_B64             suiteKind = 3
+	RSA_2048_OAEP_SHA1_B64               suiteKind = 4
+	RSA_2048_OAEP_SHA256_HMAC_SHA256_B64 suiteKind = 5
+	RSA_2048_OAEP_SHA1_HMAC_SHA256_B64   suiteKind = 6
 )
 
-type encryptedData struct {
-	t encType
+type cryptoData struct {
+	t suiteKind
 
 	newHash func() hash.Hash
 
@@ -45,50 +45,62 @@ type encryptedData struct {
 	mac  []byte
 }
 
+type symmetricKey struct {
+	key     []byte
+	hmacKey []byte
+
+	raw cryptoData
+}
+
+// nolint:deadcode,unused
+func decryptData(d []byte, key *symmetricKey) ([]byte, error) {
+	switch key.raw.t {
+	case AES_256_CBC_B64,
+		AES_128_CBC_HMAC_SHA256_B64,
+		AES_256_CBC_HMAC_SHA256_B64:
+
+		return decryptAES_CBC(d, key.key, key.raw.iv)
+	default:
+		return nil, fmt.Errorf("unsupported crypto suite: %d", key.raw.t)
+	}
+}
+
 // s to be decrypted
-// key is the prelogin key
-func decrypt(s string, encKey []byte, hmacKey []byte) (result string, err error) {
-	ed, err := parseEncryptedData(s)
+// encKey is the key derived from prelogin key when user login
+func decryptEncodedCryptoData(s string, encKey *symmetricKey) (result []byte, err error) {
+	ed, err := parseEncodedCryptoData(s)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if hmacKey != nil && !validateHMAC(ed.newHash, hmacKey, ed.iv, ed.data, ed.mac) {
+	if encKey.hmacKey != nil && !validateHMAC(ed.newHash, encKey.hmacKey, ed.iv, ed.data, ed.mac) {
 		// TODO: validate hmac before decrypt
-		_ = hmacKey
-		// return "", fmt.Errorf("data hmac invalid")
+		// return nil, fmt.Errorf("data hmac invalid")
+		_ = encKey.hmacKey
 	}
 
 	switch ed.t {
 	case AES_256_CBC_B64,
 		AES_128_CBC_HMAC_SHA256_B64,
 		AES_256_CBC_HMAC_SHA256_B64:
-		b, err := aes.NewCipher(encKey)
+		result, err = decryptAES_CBC(ed.data, encKey.key, ed.iv)
 		if err != nil {
-			return "", err
+			return nil, fmt.Errorf("failed to decode symmetric key: %w", err)
 		}
-
-		cbcDec := cipher.NewCBCDecrypter(b, ed.iv)
-		buf := make([]byte, len(ed.data))
-		cbcDec.CryptBlocks(buf, ed.data)
-
-		// remove padding
-		// https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.3.2
-		paddingLen := int(buf[len(buf)-1])
-		result = string(bytes.TrimSuffix(buf, buf[len(buf)-paddingLen:]))
 	case RSA_2048_OAEP_SHA1_B64,
 		RSA_2048_OAEP_SHA256_B64,
 		RSA_2048_OAEP_SHA1_HMAC_SHA256_B64,
 		RSA_2048_OAEP_SHA256_HMAC_SHA256_B64:
 
+		// TODO
 		_, _ = rsa.DecryptOAEP(ed.newHash(), rand.Reader, nil, nil, nil)
 	}
 
 	return
 }
 
-func parseEncryptedData(s string) (ret *encryptedData, err error) {
-	var t encType
+func parseEncodedCryptoData(s string) (ret *cryptoData, err error) {
+	var t suiteKind
 	parts := strings.Split(s, ".")
 	if len(parts) == 2 {
 		var v int64
@@ -97,7 +109,7 @@ func parseEncryptedData(s string) (ret *encryptedData, err error) {
 			return
 		}
 
-		t = encType(v)
+		t = suiteKind(v)
 		parts = strings.Split(parts[1], "|")
 	} else {
 		parts = strings.Split(s, "|")
@@ -109,12 +121,13 @@ func parseEncryptedData(s string) (ret *encryptedData, err error) {
 		}
 	}
 
-	ret = &encryptedData{
+	ret = &cryptoData{
 		t: t,
 	}
 	var err2 error
 	switch t {
-	case AES_128_CBC_HMAC_SHA256_B64, AES_256_CBC_HMAC_SHA256_B64:
+	case AES_128_CBC_HMAC_SHA256_B64,
+		AES_256_CBC_HMAC_SHA256_B64:
 		if len(parts) != 3 {
 			err = fmt.Errorf("invalid enc key")
 			return
@@ -164,46 +177,58 @@ func parseEncryptedData(s string) (ret *encryptedData, err error) {
 	return
 }
 
-func parseEncKey(encKey string, preLoginKey []byte) (key, hmacKey []byte, err error) {
-	ek, err := parseEncryptedData(encKey)
+func parseSymmetricKey(s string, keyForDecryption *symmetricKey) (*symmetricKey, error) {
+	ek, err := parseEncodedCryptoData(s)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	key := keyForDecryption.key
+
+	ret := &symmetricKey{
+		raw: *ek,
+	}
+	switch ek.t {
+	case AES_256_CBC_B64:
+	case AES_256_CBC_HMAC_SHA256_B64:
+		if keyForDecryption.hmacKey == nil {
+			// stretch key when keyForDecruption has no hmacKey
+			//
+			// only used when the keyForDecruption.key is the prelogin key
+			newKey := make([]byte, 64)
+
+			_, _ = hkdf.Expand(ek.newHash, keyForDecryption.key, []byte("enc")).Read(newKey[:32])
+			_, _ = hkdf.Expand(ek.newHash, keyForDecryption.key, []byte("mac")).Read(newKey[32:])
+
+			key = newKey[:32]
+			ret.hmacKey = newKey[32:]
+		}
+	default:
+		return nil, fmt.Errorf("unsupported symmetric key type %d", ek.t)
+	}
+
+	if ret.hmacKey != nil && !validateHMAC(ek.newHash, ret.hmacKey, ek.iv, ek.data, ek.mac) {
+		return nil, fmt.Errorf("enc key hmac invalid")
 	}
 
 	switch ek.t {
-	case AES_256_CBC_B64:
-		hmacKey = nil
-	case AES_256_CBC_HMAC_SHA256_B64:
-		hashSize := ek.newHash().Size()
-		newKey := make([]byte, hashSize*2)
+	case AES_256_CBC_B64,
+		AES_256_CBC_HMAC_SHA256_B64:
+		ret.key, err = decryptAES_CBC(ek.data, key, ek.iv)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode symmetric key: %w", err)
+		}
 
-		_, _ = hkdf.Expand(ek.newHash, preLoginKey, []byte("enc")).Read(newKey[:hashSize])
-		_, _ = hkdf.Expand(ek.newHash, preLoginKey, []byte("mac")).Read(newKey[hashSize:])
-
-		preLoginKey = newKey[:hashSize]
-		hmacKey = newKey[hashSize:]
+		ret.key = ret.key[:32]
+		ret.hmacKey = ret.key[32:]
 	default:
-		return nil, nil, fmt.Errorf("unsupported enc key type %d", ek.t)
+		panic("unreachable")
 	}
 
-	if hmacKey != nil && !validateHMAC(ek.newHash, hmacKey, ek.iv, ek.data, ek.mac) {
-		return nil, nil, fmt.Errorf("enc key hmac invalid")
-	}
-
-	b, err := aes.NewCipher(preLoginKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cbcDec := cipher.NewCBCDecrypter(b, ek.iv)
-	buf := make([]byte, len(ek.data))
-	cbcDec.CryptBlocks(buf, ek.data)
-
-	// always aes-256-cbc, so the cipher length is always 32
-	return buf[:32], hmacKey, nil
+	return ret, nil
 }
 
-func makeKey(password, email string, kdfTypePtr *bw.KdfType, kdfIterationsPtr *int32) ([]byte, error) {
+func makePreloginKey(password, email string, kdfTypePtr *bw.KdfType, kdfIterationsPtr *int32) ([]byte, error) {
 	const (
 		// https://github.com/bitwarden/jslib/blob/master/src/enums/kdfType.ts
 		pbkdf2SHA256            bw.KdfType = 0
@@ -241,4 +266,35 @@ func validateHMAC(newHash func() hash.Hash, key, iv, data, mac []byte) bool {
 	hm.Write(data)
 
 	return hmac.Equal(mac, hm.Sum(nil))
+}
+
+// remove padding
+// https://datatracker.ietf.org/doc/html/rfc5246#section-6.2.3.2
+func unpad(buf []byte) []byte {
+	if len(buf) == 0 {
+		return buf
+	}
+
+	paddingLen := int(buf[len(buf)-1])
+	if paddingLen >= len(buf) {
+		// no padding
+		return buf
+	}
+
+	// possible padding exists
+	return bytes.TrimSuffix(buf, buf[len(buf)-paddingLen:])
+}
+
+// nolint:revive
+func decryptAES_CBC(data, key, iv []byte) (_ []byte, err error) {
+	b, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cbcDec := cipher.NewCBCDecrypter(b, iv)
+	buf := make([]byte, len(data))
+	cbcDec.CryptBlocks(buf, data)
+
+	return unpad(buf), nil
 }

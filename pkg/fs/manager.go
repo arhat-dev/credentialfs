@@ -4,17 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"syscall"
+
+	"golang.org/x/term"
 
 	"arhat.dev/credentialfs/pkg/conf"
 	"arhat.dev/credentialfs/pkg/pm"
-	"github.com/hanwen/go-fuse/v2/fs"
-	"golang.org/x/term"
 )
-
-func init() {
-	_ = fs.Inode{}
-}
 
 type bundle struct {
 	pm     pm.Interface
@@ -54,7 +49,7 @@ func (m *Manager) Start() error {
 			}
 
 			_, _ = fmt.Fprintf(os.Stdout, "Please enter your password for pm %q: ", b.pm.ConfigName())
-			pwd, err := term.ReadPassword(syscall.Stdin)
+			pwd, err := term.ReadPassword(int(os.Stdin.Fd()))
 			if err != nil {
 				println(err.Error())
 			}

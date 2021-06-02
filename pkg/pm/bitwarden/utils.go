@@ -61,6 +61,9 @@ func (d *Driver) login(password, email string) error {
 	values.Set("password", hashedPassword)
 
 	loginURL, err := url.Parse(d.client.Server)
+	if err != nil {
+		return fmt.Errorf("failed to bitwarden server url: %w", err)
+	}
 	parent := path.Dir(strings.TrimSuffix(loginURL.Path, "/"))
 	loginURL.Path = path.Join(parent, "identity/connect/token")
 
@@ -152,13 +155,13 @@ func (d *Driver) hashPassword(password string, key []byte) string {
 func (d *Driver) makeKey(password, email string, kdfTypePtr *bw.KdfType, kdfIterationsPtr *int32) ([]byte, error) {
 	const (
 		// https://github.com/bitwarden/jslib/blob/master/src/enums/kdfType.ts
-		PBKDF2_SHA256             bw.KdfType = 0
-		minimum_PBKDF2_Iterations int        = 5000
+		pbkdf2SHA256            bw.KdfType = 0
+		minimumPBKDF2Iterations int        = 5000
 	)
 
 	var (
-		kdfType       bw.KdfType = PBKDF2_SHA256
-		kdfIterations            = minimum_PBKDF2_Iterations
+		kdfType       bw.KdfType = pbkdf2SHA256
+		kdfIterations            = minimumPBKDF2Iterations
 	)
 
 	if kdfIterationsPtr != nil {
@@ -170,9 +173,9 @@ func (d *Driver) makeKey(password, email string, kdfTypePtr *bw.KdfType, kdfIter
 	}
 
 	switch kdfType {
-	case PBKDF2_SHA256:
-		if kdfIterations < minimum_PBKDF2_Iterations {
-			return nil, fmt.Errorf("pbkdf2 iteration minimum is %d", minimum_PBKDF2_Iterations)
+	case pbkdf2SHA256:
+		if kdfIterations < minimumPBKDF2Iterations {
+			return nil, fmt.Errorf("pbkdf2 iteration minimum is %d", minimumPBKDF2Iterations)
 		}
 
 		return pbkdf2.Key([]byte(password), []byte(email), kdfIterations, sha256.Size, sha256.New), nil

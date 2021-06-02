@@ -7,10 +7,14 @@ type loginData struct {
 	Password string `json:"password" yaml:"password"`
 }
 
+// Errors require special handling
 var (
 	// login data not found, need to request user input
 	ErrNotFound = errors.New("not found")
 
 	// old login data invalid, need to request a new one
 	ErrOldInvalid = errors.New("old invalid")
+
+	// operation not supported
+	ErrUnsupported = errors.New("not supported")
 )

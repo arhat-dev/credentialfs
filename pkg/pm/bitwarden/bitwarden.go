@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"sync"
 
-	"arhat.dev/bitwardenapi/bwinternal"
 	bw "arhat.dev/bitwardenapi/bwinternal"
+
 	"arhat.dev/credentialfs/pkg/auth"
 	"arhat.dev/credentialfs/pkg/pm"
 )
@@ -29,7 +29,7 @@ func init() {
 				return nil, fmt.Errorf("unexpected non bitwarden config: %T", config)
 			}
 
-			client, err := bwinternal.NewClient(
+			client, err := bw.NewClient(
 				c.EndpointURL,
 				bw.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 					req.Header.Set("Device-Type", getDeviceType())
@@ -65,7 +65,7 @@ var _ pm.Interface = (*Driver)(nil)
 
 type Driver struct {
 	ctx    context.Context
-	client *bwinternal.Client
+	client *bw.Client
 
 	configName string
 	saveLogin  bool
@@ -161,5 +161,10 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 	return nil
 }
 
-func (d *Driver) Get(key string) ([]byte, error)       { return nil, fmt.Errorf("unimplemented") }
-func (d *Driver) Update(key string, data []byte) error { return fmt.Errorf("unimplemented") }
+func (d *Driver) Get(key string) ([]byte, error) {
+	return nil, fmt.Errorf("unimplemented")
+}
+
+func (d *Driver) Update(key string, data []byte) error {
+	return fmt.Errorf("unimplemented")
+}

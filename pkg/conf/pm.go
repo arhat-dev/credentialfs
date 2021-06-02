@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"arhat.dev/credentialfs/pkg/pm"
 	"gopkg.in/yaml.v3"
+
+	"arhat.dev/credentialfs/pkg/pm"
 )
 
 type PasswordManagerConfig struct {

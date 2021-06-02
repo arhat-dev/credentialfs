@@ -15,7 +15,7 @@ import (
 	"fmt"
 )
 
-// request user authorization from Authorization Service
+// RequestAuth requests user authorization from Authorization Service
 func RequestAuth() (bool, error) {
 	return false, fmt.Errorf("unimplemented")
 }

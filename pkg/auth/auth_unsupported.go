@@ -3,7 +3,7 @@
 
 package auth
 
-// request user authorization from Authorization Service
+// RequestAuth requests user authorization
 func RequestAuth() (bool, error) {
 	return false, ErrUnsupported
 }

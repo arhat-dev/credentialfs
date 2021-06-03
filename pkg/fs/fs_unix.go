@@ -145,10 +145,17 @@ func (fs *filesystem) BindData(ctx context.Context, at string, data []byte) (err
 			return err
 		}
 
-		if linkInfo.Mode()&os.ModeSymlink != 0 {
-			_ = os.Remove(ln.target)
-			_ = os.Symlink(realPath, ln.target)
-		} else {
+		if linkInfo.Mode()&os.ModeSymlink == 0 {
+			return err
+		}
+
+		err = os.Remove(ln.target)
+		if err != nil {
+			return fmt.Errorf("failed to remove existing symlink: %w", err)
+		}
+
+		err = os.Symlink(realPath, ln.target)
+		if err != nil {
 			return err
 		}
 	}

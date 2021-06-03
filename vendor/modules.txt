@@ -1,11 +1,12 @@
 # arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d
 ## explicit
 arhat.dev/bitwardenapi/bwinternal
-# arhat.dev/pkg v0.5.6
+# arhat.dev/pkg v0.5.7-0.20210603224723-f26131419b3d
 ## explicit
 arhat.dev/pkg/envhelper
 arhat.dev/pkg/hashhelper
 arhat.dev/pkg/log
+arhat.dev/pkg/queue
 # github.com/deepmap/oapi-codegen v1.7.0
 ## explicit
 github.com/deepmap/oapi-codegen/pkg/runtime

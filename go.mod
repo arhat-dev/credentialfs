@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d
-	arhat.dev/pkg v0.5.6
+	arhat.dev/pkg v0.5.7-0.20210603224723-f26131419b3d
 	github.com/deepmap/oapi-codegen v1.7.0
 	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6

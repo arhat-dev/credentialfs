@@ -1,7 +1,7 @@
 arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d h1:9hR4ldfGo46lmNdgeY5ZS72KC2gG7LVqtjTEUIz8ZKM=
 arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d/go.mod h1:QETuSrpSf+n1SKo0daa4GfxiXD3golzvMeChfO3v17c=
-arhat.dev/pkg v0.5.6 h1:m3ESR97olKeFlzFa1G2bKLIIyZeKy4qH83b66pTMXfo=
-arhat.dev/pkg v0.5.6/go.mod h1:xm1KnWMYaJWvZJ3h4/6NN+Ykr4GqFxJvjwFB3RzJ/oI=
+arhat.dev/pkg v0.5.7-0.20210603224723-f26131419b3d h1:gqCjBwfINDCSzwxSXL8h2iEwFj9ULmA20teIkyoqydI=
+arhat.dev/pkg v0.5.7-0.20210603224723-f26131419b3d/go.mod h1:xm1KnWMYaJWvZJ3h4/6NN+Ykr4GqFxJvjwFB3RzJ/oI=
 bitbucket.org/bertimus9/systemstat v0.0.0-20180207000608-0eeff89b0690/go.mod h1:Ulb78X89vxKYgdL24HMTiXYHlyHEvruOj1ZPlqeNEZM=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=

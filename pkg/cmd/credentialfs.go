@@ -84,6 +84,13 @@ func run(appCtx context.Context, config *conf.Config) error {
 		return fmt.Errorf("failed to start fs manager: %w", err)
 	}
 
+	defer func() {
+		err2 := mgr.Stop()
+		if err2 != nil {
+			fmt.Println(err2.Error())
+		}
+	}()
+
 	<-appCtx.Done()
 
 	return nil

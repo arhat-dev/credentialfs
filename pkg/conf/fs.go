@@ -1,9 +1,13 @@
 package conf
 
-type FilesystemConfig []struct {
-	PM PasswordManagerConfig `json:"pm" yaml:"pm"`
+type FilesystemConfig struct {
+	Mountpoint string `json:"mountpoint" yaml:"mountpoint"`
+	Debug      bool   `json:"debug" yaml:"debug"`
 
-	Mounts []MountConfig `json:"mounts" yaml:"mounts"`
+	Spec []struct {
+		PM     PasswordManagerConfig `json:"pm" yaml:"pm"`
+		Mounts []MountConfig         `json:"mounts" yaml:"mounts"`
+	} `json:"spec" yaml:"spec"`
 }
 
 type MountConfig struct {

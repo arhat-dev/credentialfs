@@ -4,6 +4,6 @@
 package auth
 
 // RequestAuth requests user authorization
-func RequestAuth() (bool, error) {
-	return false, ErrUnsupported
+func RequestAuth(prompt string) error {
+	return ErrUnsupported
 }

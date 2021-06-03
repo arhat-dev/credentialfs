@@ -364,7 +364,7 @@ type NodeSetlkwer interface {
 // DirStream lists directory entries.
 type DirStream interface {
 	// HasNext indicates if there are further entries. HasNext
-	// might be called on already §d streams.
+	// might be called on already closed streams.
 	HasNext() bool
 
 	// Next retrieves the next entry. It is only called if HasNext

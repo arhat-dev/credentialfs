@@ -36,17 +36,21 @@ app:
     file: stderr
 
 fs:
-- pm:
-    # (required) unique name (among all local credentialfs config) of this password manager config
-    name: my-bitwarden-pm
-    # (required) driver currently only supports `bitwarden`
-    driver: bitwarden
-    # please read ./docs/pm/{driver}.md for config reference
-    config: {}
-  mounts:
-  - from: <Item Name>/<Attachment Name>
-    # local mount path (filename or dir)
-    to: ${HOME}/.ssh/joe.doyle
+  # global mountpoint, all your credentials will be mounted to this
+  # directory
+  mountpoint: ${HOME}/.credentials
+  spec:
+  - pm:
+      # (required) unique name (among all local credentialfs config) of this password manager config
+      name: my-bitwarden-pm
+      # (required) driver currently only supports `bitwarden`
+      driver: bitwarden
+      # please read ./docs/pm/{driver}.md for config reference
+      config: {}
+    mounts:
+    - from: <Item Name>/<Attachment Name>
+      # local mount path (filename or dir)
+      to: ${HOME}/.ssh/joe.doyle
 ```
 
 ## Acknowledgement

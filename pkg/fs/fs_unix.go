@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"arhat.dev/credentialfs/pkg/auth"
 	"arhat.dev/pkg/hashhelper"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -271,6 +272,15 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
+			err := auth.RequestAuth(
+				fmt.Sprintf(
+					"Your credential in %s is about to be read, please authorize", n.target,
+				),
+			)
+			if err != nil {
+				return nil, 0, syscall.EACCES
+			}
+
 			return n.newOpenedLeafNodeFile(i), 0, 0
 		}
 	}

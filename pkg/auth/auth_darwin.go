@@ -8,55 +8,8 @@ package auth
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
-#include <stdlib.h>
-#include <string.h>
 
-OSStatus request_auth(char* right_name, char* prompt, size_t prompt_size) {
-	AuthorizationRef ref;
-	OSStatus code = AuthorizationCreate(
-		NULL,
-		kAuthorizationEmptyEnvironment,
-		kAuthorizationFlagDefaults,
-		&ref);
-	if (code != errAuthorizationSuccess) {
-		return code;
-	}
-
-	AuthorizationItem rightItems[1];
-	rightItems[0].name = right_name;
-	rightItems[0].value = (char *)("test");
-	rightItems[0].valueLength = 5;
-
-	AuthorizationRights rights = {
-		.count = sizeof (rightItems) / sizeof (rightItems[0]),
-		.items = rightItems,
-	};
-
-	AuthorizationItem envItems[1];
-	envItems[0].name = kAuthorizationEnvironmentPrompt;
-	envItems[0].value = prompt;
-	envItems[0].valueLength = prompt_size;
-
-	AuthorizationEnvironment env = {
-		.count = sizeof (envItems) / sizeof (envItems[0]),
-		.items = envItems,
-	};
-
-	code = AuthorizationCreate(
-		&rights,
-		&env,
-		kAuthorizationFlagDefaults | kAuthorizationFlagInteractionAllowed | kAuthorizationFlagExtendRights,
-		&ref);
-
-	free(right_name);
-	free(prompt);
-
-	if (code == errAuthorizationSuccess) {
-		AuthorizationFree(ref, kAuthorizationFlagDestroyRights);
-	}
-
-	return code;
-}
+#include "auth_darwin.h"
 
 */
 import "C"
@@ -83,22 +36,41 @@ const (
 	authBadAddress            = C.errAuthorizationBadAddress
 )
 
-// RequestAuth requests user authorization from Authorization Service
-func RequestAuth(prompt string) error {
+// RequestAuthorization requests user authorization via macos Authorization Service
+func RequestAuthorization(key, prompt string) (AuthorizationData, error) {
+	ref_ptr := C.create_auth_ref_ptr()
+
 	code := C.request_auth(
-		C.CString("dev.arhat.credentialfs.file.read"),
+		C.CString(key),
 		C.CString(prompt),
 		C.size_t(len(prompt)),
+		ref_ptr,
 	)
 
 	switch code {
 	case authSuccess:
-		return nil
+		return ref_ptr, nil
 	case authUserDenied:
-		return fmt.Errorf("authorization denied by user")
+		return nil, fmt.Errorf("authorization denied by user")
 	case authUserCancled:
-		return fmt.Errorf("authorization canceled by user")
+		return nil, fmt.Errorf("authorization canceled by user")
 	default:
-		return fmt.Errorf("authorization failed: %d", code)
+		return nil, fmt.Errorf("authorization failed: code %d", code)
+	}
+}
+
+func DestroyAuthorization(d AuthorizationData) error {
+	ref_ptr, ok := d.(*C.AuthorizationRef)
+	if !ok {
+		return fmt.Errorf("invalid authorization data type: %T", d)
+	}
+
+	code := C.destroy_auth(ref_ptr)
+
+	switch code {
+	case 0:
+		return nil
+	default:
+		return fmt.Errorf("failed to destroy authorization: code %d", code)
 	}
 }

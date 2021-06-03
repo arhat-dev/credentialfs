@@ -1,6 +1,9 @@
 package fs
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // nolint:revive
 const (
@@ -9,12 +12,17 @@ const (
 
 type Filesystem interface {
 	// Start serving files in background (mount)
-	Start() error
+	Start(ctx context.Context) error
 
 	// Stop background serving (unmount)
 	Stop() error
 
-	BindData(ctx context.Context, at string, data []byte) error
+	BindData(
+		ctx context.Context,
+		at string,
+		data []byte,
+		permitDuration time.Duration,
+	) error
 }
 
 func CreateFilesystem(at string, debug bool) (Filesystem, error) {

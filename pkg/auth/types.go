@@ -20,3 +20,7 @@ var (
 	// operation not supported
 	ErrUnsupported = errors.New("not supported")
 )
+
+// AuthorizationData returned by system security service
+// for darwin, it's a C pointer value for AuthorizationRef
+type AuthorizationData interface{}

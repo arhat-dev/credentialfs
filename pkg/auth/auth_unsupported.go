@@ -3,7 +3,12 @@
 
 package auth
 
-// RequestAuth requests user authorization
-func RequestAuth(prompt string) error {
-	return ErrUnsupported
+// RequestAuthorization requests user authorization
+func RequestAuthorization(key, prompt string) error {
+	return nil
+}
+
+// DestroyAuthorization
+func DestroyAuthorization(d AuthorizationData) error {
+	return nil
 }

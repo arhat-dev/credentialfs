@@ -69,7 +69,7 @@ func (m *Manager) Start() (err error) {
 		return fmt.Errorf("failed to create fuse filesystem: %w", err)
 	}
 
-	err = m.fs.Start()
+	err = m.fs.Start(m.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start fuse filesystem: %w", err)
 	}
@@ -110,7 +110,7 @@ func (m *Manager) Start() (err error) {
 				return fmt.Errorf("failed to mount %q to %q: %w", mount.From, mount.To, err)
 			}
 
-			err = m.fs.BindData(m.ctx, mount.To, data)
+			err = m.fs.BindData(m.ctx, mount.To, data, mount.PermitDuration)
 			if err != nil {
 				return fmt.Errorf("failed to bind data to filesystem: %w", err)
 			}

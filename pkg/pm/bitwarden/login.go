@@ -32,7 +32,7 @@ func (d *Driver) prependPath(p string) bw.RequestEditorFn {
 	}
 }
 
-func (d *Driver) login(password, email string) error {
+func (d *Driver) login(masterPassword, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	resp, err := d.client.PostAccountsPrelogin(d.ctx, bw.PostAccountsPreloginJSONRequestBody{
@@ -58,7 +58,7 @@ func (d *Driver) login(password, email string) error {
 		kdfIterationsPtr = pr.JSON200.KdfIterations
 	}
 
-	preLoginKey, err := makePreloginKey(password, email, kdfTypePtr, kdfIterationsPtr)
+	masterKey, err := makeMasterKey(masterPassword, email, kdfTypePtr, kdfIterationsPtr)
 	if err != nil {
 		return fmt.Errorf("failed to make kdf key: %w", err)
 	}
@@ -72,7 +72,7 @@ func (d *Driver) login(password, email string) error {
 	values.Set("deviceName", "credentialfs")
 	values.Set("deviceType", getDeviceType())
 
-	hashedPassword := hashPassword(password, preLoginKey)
+	hashedPassword := hashPassword(masterPassword, masterKey)
 	values.Set("password", hashedPassword)
 
 	loginURL, err := url.Parse(d.client.Server)
@@ -151,9 +151,27 @@ func (d *Driver) login(password, email string) error {
 		return fmt.Errorf("failed to parse user info from access token: %w", err)
 	}
 
-	encKey, err := parseSymmetricKey(data.EncKey, &symmetricKey{key: preLoginKey})
+	encKeyData, err := decodeProtectedData(data.EncKey)
 	if err != nil {
-		return fmt.Errorf("failed to decode encryption key: %w", err)
+		return fmt.Errorf("failed to decode master key: %w", err)
+	}
+
+	encKey, err := encKeyData.decryptAsKey(&bitwardenKey{
+		kind: encKeyData.encryptedWith,
+		key:  masterKey,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to decrypt master key: %w", err)
+	}
+
+	pkData, err := decodeProtectedData(data.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode private key: %w", err)
+	}
+
+	pk, err := pkData.decryptAsKey(encKey)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt private key: %w", err)
 	}
 
 	d.update(func() {
@@ -162,11 +180,11 @@ func (d *Driver) login(password, email string) error {
 
 		d.refreshToken = data.RefreshToken
 
-		d.preLoginKey = preLoginKey
+		d.masterKey = masterKey
 		d.hashedPassword = hashedPassword
 
 		d.encKey = encKey
-		d.encPrivateKey = []byte(data.PrivateKey)
+		d.privateKey = pk
 	})
 
 	return nil

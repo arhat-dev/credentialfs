@@ -87,7 +87,7 @@ type attachmentValue struct {
 	URL string
 
 	// decrypted attachment key or org key
-	Key *symmetricKey
+	Key *bitwardenKey
 }
 
 type Driver struct {
@@ -106,10 +106,10 @@ type Driver struct {
 	user *bitwardenUser
 
 	refreshToken   string
-	preLoginKey    []byte
+	masterKey      []byte
 	hashedPassword string
-	encKey         *symmetricKey
-	encPrivateKey  []byte
+	encKey         *bitwardenKey
+	privateKey     *bitwardenKey
 
 	// key: attachmentKey
 	// value: url to get the attachment
@@ -190,16 +190,17 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 	if err != nil {
 		loginUpdated = true
 
-		// wrong password, need user input
-		username, password, err = showLoginPrompt()
-		if err != nil {
-			return err
-		}
+		// // wrong password, need user input
+		// username, password, err = showLoginPrompt()
+		// if err != nil {
+		// 	return err
+		// }
 
-		err = d.login(password, username)
-		if err != nil {
-			return err
-		}
+		// err = d.login(password, username)
+		// if err != nil {
+		// 	return err
+		// }
+		return err
 	}
 
 	if d.saveLogin && loginUpdated {
@@ -250,12 +251,12 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read attachment data: %w", err)
 	}
 
-	// TODO: decrypt data with key
+	// TODO: decrypt attachment data with key
 
-	// data, err = decryptData(data, spec.Key)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
-	// }
+	data, err = decryptData(data, spec.Key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
+	}
 
 	return data, nil
 }

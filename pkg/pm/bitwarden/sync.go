@@ -8,7 +8,7 @@ import (
 	"arhat.dev/credentialfs/pkg/constant"
 )
 
-func (d *Driver) sync(encKey *symmetricKey) error {
+func (d *Driver) sync(globalEncKey *bitwardenKey) error {
 	resp, err := d.client.GetSync(d.ctx, &bw.GetSyncParams{
 		ExcludeDomains: constant.True(),
 	}, d.prependPath("api"))
@@ -30,7 +30,7 @@ func (d *Driver) sync(encKey *symmetricKey) error {
 		return nil
 	}
 
-	orgKeys := make(map[string]*symmetricKey)
+	orgKeys := make(map[string]*bitwardenKey)
 
 	if sr.JSON200.Profile != nil && sr.JSON200.Profile.Organizations != nil {
 		for _, org := range *sr.JSON200.Profile.Organizations {
@@ -38,7 +38,12 @@ func (d *Driver) sync(encKey *symmetricKey) error {
 				continue
 			}
 
-			orgKey, err := parseSymmetricKey(*org.Key, encKey)
+			orgKeyData, err := decodeProtectedData(*org.Key)
+			if err != nil {
+				return fmt.Errorf("failed to decode org key: %w", err)
+			}
+
+			orgKey, err := orgKeyData.decryptAsKey(globalEncKey)
 			if err != nil {
 				return fmt.Errorf("failed to parse org key: %w", err)
 			}
@@ -52,14 +57,23 @@ func (d *Driver) sync(encKey *symmetricKey) error {
 			continue
 		}
 
-		itemName, err := decryptEncodedCryptoData(*c.Name, encKey)
-		if err != nil {
-			return err
-		}
-
-		var orgKey *symmetricKey
+		var orgKey *bitwardenKey
 		if c.OrganizationId != nil {
 			orgKey = orgKeys[*c.OrganizationId]
+		}
+
+		itemNameData, err := decodeProtectedData(*c.Name)
+		if err != nil {
+			return fmt.Errorf("failed to decode org key: %w", err)
+		}
+
+		encKey := globalEncKey
+		if orgKey != nil {
+			encKey = orgKey
+		}
+		itemName, err := itemNameData.decrypt(encKey)
+		if err != nil {
+			return err
 		}
 
 		for _, a := range *c.Attachments {
@@ -67,14 +81,24 @@ func (d *Driver) sync(encKey *symmetricKey) error {
 				continue
 			}
 
-			filename, err := decryptEncodedCryptoData(*a.FileName, encKey)
+			filenameData, err := decodeProtectedData(*a.FileName)
+			if err != nil {
+				return fmt.Errorf("failed to decode org key: %w", err)
+			}
+
+			filename, err := filenameData.decrypt(encKey)
 			if err != nil {
 				return err
 			}
 
-			key := orgKey
+			attachmentEncKey := encKey
 			if a.Key != nil {
-				key, err = parseSymmetricKey(*a.Key, encKey)
+				keyData, err := decodeProtectedData(*a.Key)
+				if err != nil {
+					return fmt.Errorf("failed to decode org key: %w", err)
+				}
+
+				attachmentEncKey, err = keyData.decryptAsKey(encKey)
 				if err != nil {
 					return fmt.Errorf("failed to parse attachment key: %w", err)
 				}
@@ -84,7 +108,7 @@ func (d *Driver) sync(encKey *symmetricKey) error {
 				ItemName: string(itemName),
 				Filename: string(filename),
 			}, &attachmentValue{
-				Key: key,
+				Key: attachmentEncKey,
 				URL: *a.Url,
 			})
 		}

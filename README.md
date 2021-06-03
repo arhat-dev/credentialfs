@@ -24,8 +24,12 @@ Use cases:
 
 ## Support Matrix
 
+- OS
+  - [x] `macos`
+  - [ ] `windows`
+  - [ ] `linux`
 - Password Managers
-  - [ ] [`bitwarden`](./docs/pm/bitwarden.md)
+  - [x] [`bitwarden`](./docs/pm/bitwarden.md)
 
 ## Config
 
@@ -37,8 +41,14 @@ app:
 
 fs:
   # global mountpoint, all your credentials will be mounted to this
-  # directory
+  # directory, you can find all files listed in `fs.spec[*].mounts.from`
+  # in this directory, however their names are hex encoded string of
+  # `fs.spec[*].mounts.to`
   mountpoint: ${HOME}/.credentials
+  # show fuse debug log output
+  debug: false
+  # filesystem spec
+  # list of password managers and their file mounts
   spec:
   - pm:
       # (required) unique name (among all local credentialfs config) of this password manager config
@@ -48,7 +58,8 @@ fs:
       # please read ./docs/pm/{driver}.md for config reference
       config: {}
     mounts:
-    - from: <Item Name>/<Attachment Name>
+      # only supports attachment of bitwarden now
+    - from: <Item Name>/<Attachment Filename>
       # local mount path (filename or dir)
       to: ${HOME}/.ssh/joe.doyle
 ```

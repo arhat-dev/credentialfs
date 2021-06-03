@@ -58,8 +58,7 @@ fs:
       # please read ./docs/pm/{driver}.md for config reference
       config: {}
     mounts:
-      # only supports attachment of bitwarden now
-    - from: <Item Name>/<Attachment Filename>
+    - from: <Item Name>/<Item Key>
       # local mount path (filename or dir)
       to: ${HOME}/.ssh/joe.doyle
 ```

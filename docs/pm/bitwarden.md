@@ -2,6 +2,12 @@
 
 [Bitwarden](https://bitwarden.com/) password manager
 
+## Supported Targets
+
+- [x] Login (`username` & `password`)
+- [x] Custom Fields
+- [x] Attachments
+
 ## Config
 
 ```yaml

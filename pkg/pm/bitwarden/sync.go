@@ -6,6 +6,7 @@ import (
 	bw "arhat.dev/bitwardenapi/bwinternal"
 
 	"arhat.dev/credentialfs/pkg/constant"
+	"arhat.dev/credentialfs/pkg/pm"
 )
 
 func (d *Driver) sync(globalEncKey *bitwardenKey) error {
@@ -57,9 +58,14 @@ func (d *Driver) sync(globalEncKey *bitwardenKey) error {
 			continue
 		}
 
+		encKey := globalEncKey
 		var orgKey *bitwardenKey
 		if c.OrganizationId != nil {
-			orgKey = orgKeys[*c.OrganizationId]
+			var ok bool
+			orgKey, ok = orgKeys[*c.OrganizationId]
+			if ok {
+				encKey = orgKey
+			}
 		}
 
 		itemNameData, err := decodeProtectedData(*c.Name)
@@ -67,51 +73,154 @@ func (d *Driver) sync(globalEncKey *bitwardenKey) error {
 			return fmt.Errorf("failed to decode org key: %w", err)
 		}
 
-		encKey := globalEncKey
-		if orgKey != nil {
-			encKey = orgKey
-		}
 		itemName, err := itemNameData.decrypt(encKey)
 		if err != nil {
 			return err
 		}
 
-		for _, a := range *c.Attachments {
-			if a.FileName == nil || a.Url == nil {
-				continue
-			}
-
-			filenameData, err := decodeProtectedData(*a.FileName)
-			if err != nil {
-				return fmt.Errorf("failed to decode org key: %w", err)
-			}
-
-			filename, err := filenameData.decrypt(encKey)
-			if err != nil {
-				return err
-			}
-
-			attachmentEncKey := encKey
-			if a.Key != nil {
-				keyData, err := decodeProtectedData(*a.Key)
-				if err != nil {
-					return fmt.Errorf("failed to decode org key: %w", err)
-				}
-
-				attachmentEncKey, err = keyData.decryptAsKey(encKey)
-				if err != nil {
-					return fmt.Errorf("failed to parse attachment key: %w", err)
-				}
-			}
-
-			d.attachments.Store(attachmentKey{
-				ItemName: string(itemName),
-				Filename: string(filename),
-			}, &attachmentValue{
-				Key: attachmentEncKey,
-				URL: *a.Url,
-			})
+		err = d.parseCipherLogin(string(itemName), c.Login, encKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse cipher login: %w", err)
 		}
+
+		err = d.parseCipherFields(string(itemName), c.Fields, encKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse cipher fields: %w", err)
+		}
+
+		err = d.parseCihperAttachments(string(itemName), c.Attachments, encKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse cipher attachments: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (d *Driver) parseCipherLogin(
+	itemName string,
+	login *bw.CipherLoginModel,
+	key *bitwardenKey,
+) error {
+	switch {
+	case login == nil:
+		return nil
+	case login.Username == nil && login.Password == nil:
+		return nil
+	}
+
+	if u := login.Username; u != nil {
+		usernameData, err := decodeProtectedData(*u)
+		if err != nil {
+			return fmt.Errorf("failed to decode field name: %w", err)
+		}
+
+		username, err := usernameData.decrypt(key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt field name: %w", err)
+		}
+
+		d.updateCipherIndex(itemName, pm.UsernameIndexKey, username, "", nil)
+	}
+
+	if p := login.Password; p != nil {
+		passwordData, err := decodeProtectedData(*p)
+		if err != nil {
+			return fmt.Errorf("failed to decode field name: %w", err)
+		}
+
+		password, err := passwordData.decrypt(key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt field name: %w", err)
+		}
+
+		d.updateCipherIndex(itemName, pm.PasswordIndexKey, password, "", nil)
+	}
+
+	return nil
+}
+
+func (d *Driver) parseCipherFields(
+	itemName string,
+	fields *[]bw.CipherFieldModel,
+	key *bitwardenKey,
+) error {
+	if fields == nil {
+		return nil
+	}
+
+	for _, f := range *fields {
+		if f.Name == nil {
+			continue
+		}
+
+		fieldNameData, err := decodeProtectedData(*f.Name)
+		if err != nil {
+			return fmt.Errorf("failed to decode field name: %w", err)
+		}
+
+		fieldName, err := fieldNameData.decrypt(key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt field name: %w", err)
+		}
+
+		var fieldValue []byte
+		if f.Value != nil {
+			fieldValueData, err := decodeProtectedData(*f.Value)
+			if err != nil {
+				return fmt.Errorf("failed to decode field value: %w", err)
+			}
+
+			fieldValue, err = fieldValueData.decrypt(key)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt field value: %w", err)
+			}
+		}
+
+		d.updateCipherIndex(itemName, string(fieldName), fieldValue, "", nil)
+	}
+
+	return nil
+}
+
+func (d *Driver) parseCihperAttachments(
+	itemName string,
+	attachments *[]bw.AttachmentResponseModel,
+	key *bitwardenKey,
+) error {
+	if attachments == nil {
+		return nil
+	}
+
+	for _, a := range *attachments {
+		if a.FileName == nil || a.Url == nil {
+			continue
+		}
+
+		filenameData, err := decodeProtectedData(*a.FileName)
+		if err != nil {
+			return fmt.Errorf("failed to decode attachment filename: %w", err)
+		}
+
+		filename, err := filenameData.decrypt(key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt attachment filename: %w", err)
+		}
+
+		attachmentEncKey := key
+		if a.Key != nil {
+			keyData, err := decodeProtectedData(*a.Key)
+			if err != nil {
+				return fmt.Errorf("failed to decode attachment key: %w", err)
+			}
+
+			attachmentEncKey, err = keyData.decryptAsKey(key)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt attachment key: %w", err)
+			}
+		}
+
+		d.updateCipherIndex(itemName, string(filename), nil, *a.Url, attachmentEncKey)
 	}
 
 	return nil

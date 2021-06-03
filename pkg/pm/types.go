@@ -13,3 +13,9 @@ type Interface interface {
 
 	Update(key string, data []byte) error
 }
+
+// Common index keys
+const (
+	UsernameIndexKey = "username"
+	PasswordIndexKey = "password"
+)

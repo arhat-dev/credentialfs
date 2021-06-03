@@ -45,7 +45,7 @@ func init() {
 				configName: configName,
 				saveLogin:  c.SaveLogin,
 
-				attachments: &sync.Map{},
+				cipherIndex: newCipherIndex(),
 
 				mu: &sync.RWMutex{},
 			}
@@ -74,16 +74,21 @@ type Config struct {
 
 var _ pm.Interface = (*Driver)(nil)
 
-type attachmentKey struct {
-	// decrypt(Item Name)
+type cipherIndexKey struct {
+	// plaintext
+	// item name
 	ItemName string
 
-	// decrypt(Attachments FileName)
-	Filename string
+	// plaintext
+	// field name or attachment filename
+	ItemKey string
 }
 
-type attachmentValue struct {
-	// plaintext
+type cipherValue struct {
+	// encrypted value
+	Value []byte
+
+	// plaintext url for attachment
 	URL string
 
 	// decrypted attachment key or org key
@@ -111,9 +116,7 @@ type Driver struct {
 	encKey         *bitwardenKey
 	privateKey     *bitwardenKey
 
-	// key: attachmentKey
-	// value: url to get the attachment
-	attachments *sync.Map
+	*cipherIndex
 
 	mu *sync.RWMutex
 }
@@ -211,25 +214,35 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("invalid key %q", key)
 	}
 
-	specVal, ok := d.attachments.Load(attachmentKey{
-		ItemName: parts[0],
-		Filename: parts[1],
-	})
-	if !ok {
+	cipher := d.cipherIndex.lookupIndexedCipher(parts[0], parts[1])
+	if cipher == nil {
 		return nil, fmt.Errorf("credential %q not found", key)
 	}
 
-	spec := specVal.(*attachmentValue)
-	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, spec.URL, nil)
+	if len(cipher.URL) == 0 {
+		// not an attachment, return value directly
+		return cipher.Value, nil
+	}
+
+	// is an attachment url, key must present
+
+	if cipher.Key == nil {
+		return nil, fmt.Errorf("invalid cipher cache: key not found")
+	}
+
+	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, cipher.URL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	_ = d.fixRequest(d.ctx, req)
+	err = d.fixRequest(d.ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fix attachment request: %w", err)
+	}
 
 	resp, err := d.client.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to request %q: %w", key, err)
+		return nil, fmt.Errorf("failed to request attachment %q: %w", key, err)
 	}
 
 	defer func() { _ = resp.Body.Close() }()
@@ -241,7 +254,7 @@ func (d *Driver) Get(key string) ([]byte, error) {
 
 	// TODO: decrypt attachment data with key
 
-	data, err = decryptData(data, spec.Key)
+	data, err = decryptData(data, cipher.Key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
 	}

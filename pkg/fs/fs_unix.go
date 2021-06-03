@@ -18,11 +18,12 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"arhat.dev/credentialfs/pkg/auth"
 	"arhat.dev/pkg/hashhelper"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"go.uber.org/multierr"
+
+	"arhat.dev/credentialfs/pkg/auth"
 )
 
 func createFS(mountPoint string, debug bool) (_ Filesystem, err error) {
@@ -96,7 +97,7 @@ func (fs *filesystem) Start() error {
 			}
 
 			// TODO: log server restart
-			fs.Start()
+			_ = fs.Start()
 		}()
 
 		fs.srv.Serve()
@@ -307,7 +308,9 @@ func (n *leafNode) Read(ctx context.Context, f fs.FileHandle, dest []byte, off i
 	return fuse.ReadResultData(n.data[off:end]), fs.OK
 }
 
-func (n *leafNode) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
+func (n *leafNode) Write(
+	ctx context.Context, f fs.FileHandle, data []byte, off int64,
+) (written uint32, errno syscall.Errno) {
 	return 0, syscall.ENOSYS
 }
 

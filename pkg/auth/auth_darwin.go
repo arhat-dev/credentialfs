@@ -64,6 +64,7 @@ import (
 	"fmt"
 )
 
+// nolint:deadcode,varcheck
 const (
 	authSuccess               = C.errAuthorizationSuccess
 	authInvalidSet            = C.errAuthorizationInvalidSet

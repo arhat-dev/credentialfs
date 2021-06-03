@@ -188,18 +188,6 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 
 	err = d.login(password, username)
 	if err != nil {
-		loginUpdated = true
-
-		// // wrong password, need user input
-		// username, password, err = showLoginPrompt()
-		// if err != nil {
-		// 	return err
-		// }
-
-		// err = d.login(password, username)
-		// if err != nil {
-		// 	return err
-		// }
 		return err
 	}
 

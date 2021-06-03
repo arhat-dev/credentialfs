@@ -2,6 +2,7 @@ package fs
 
 import "context"
 
+// nolint:revive
 const (
 	FilesystemName = "credentialfs"
 )

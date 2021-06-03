@@ -60,7 +60,7 @@ func (m *Manager) Start() (err error) {
 		m.mu.Unlock()
 
 		if err != nil {
-			m.Stop()
+			_ = m.Stop()
 		}
 	}()
 

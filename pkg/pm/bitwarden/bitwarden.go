@@ -22,8 +22,6 @@ const (
 )
 
 func init() {
-	_ = bw.Client{}
-
 	pm.Register(
 		Name,
 		func(ctx context.Context, configName string, config interface{}) (pm.Interface, error) {
@@ -103,19 +101,6 @@ type Driver struct {
 	twoFactorKind pm.TwoFactorKind
 
 	mu *sync.RWMutex
-}
-
-func (d *Driver) fixRequest(ctx context.Context, req *http.Request) error {
-	req.Header.Set("Device-Type", getDeviceType())
-	req.Header.Set("Accept", "application/json")
-
-	d.mu.RLock()
-	if len(d.accessToken) != 0 {
-		req.Header.Set("Authorization", "Bearer "+d.accessToken)
-	}
-	d.mu.RUnlock()
-
-	return nil
 }
 
 func (d *Driver) DriverName() string {

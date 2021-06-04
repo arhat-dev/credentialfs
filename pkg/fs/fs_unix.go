@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -76,9 +75,6 @@ func newFilesystem(
 
 		mountpoint: mountpoint,
 
-		started: 0,
-		stopped: 0,
-
 		root: root,
 		srv:  srv,
 
@@ -96,9 +92,6 @@ type filesystem struct {
 
 	mountpoint string
 
-	started uint32
-	stopped uint32
-
 	root *rootNode
 	srv  *fuse.Server
 
@@ -109,36 +102,32 @@ type filesystem struct {
 	mu *sync.Mutex
 }
 
-func (fs *filesystem) Start() error {
-	if atomic.CompareAndSwapUint32(&fs.started, 0, 1) {
-		// do once
-
-		fs.authManager.Start()
-	}
-
+func (fs *filesystem) startFUSEServerUntilFilesystemStopped() {
 	go func() {
 		defer func() {
-			if atomic.LoadUint32(&fs.stopped) == 1 {
+			select {
+			case <-fs.ctx.Done():
 				return
+			default:
 			}
 
 			// TODO: log fuse server restart
-			_ = fs.Start()
+			fs.startFUSEServerUntilFilesystemStopped()
 		}()
 
 		fs.srv.Serve()
 	}()
+}
+
+func (fs *filesystem) Start() error {
+	fs.authManager.Start()
+	fs.startFUSEServerUntilFilesystemStopped()
 
 	return nil
 }
 
 // Stop background serving (unmount)
 func (fs *filesystem) Stop() error {
-	if !atomic.CompareAndSwapUint32(&fs.stopped, 0, 1) {
-		// already stopped
-		return nil
-	}
-
 	fs.cancel()
 
 	fs.mu.Lock()

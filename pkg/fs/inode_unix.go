@@ -36,7 +36,7 @@ type rootNode struct {
 
 	index map[string]int
 
-	credentialFiles []*leafNode
+	leafNodes []*leafNode
 
 	mu *sync.RWMutex
 }
@@ -45,16 +45,21 @@ func (rn *rootNode) addLeafNode(ln *leafNode) {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
-	rn.credentialFiles = append(rn.credentialFiles, ln)
-	rn.index[ln.hashedTarget] = len(rn.credentialFiles) - 1
+	idx, ok := rn.index[ln.hashedTarget]
+	if ok {
+		rn.leafNodes[idx] = ln
+	} else {
+		rn.leafNodes = append(rn.leafNodes, ln)
+		rn.index[ln.hashedTarget] = len(rn.leafNodes) - 1
+	}
 }
 
 func (rn *rootNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 	rn.mu.RLock()
 	defer rn.mu.RUnlock()
 
-	result := make([]fuse.DirEntry, len(rn.credentialFiles))
-	for i, f := range rn.credentialFiles {
+	result := make([]fuse.DirEntry, len(rn.leafNodes))
+	for i, f := range rn.leafNodes {
 		result[i] = fuse.DirEntry{
 			Name: f.hashedTarget,
 			Ino:  uint64(i) + 2,
@@ -74,7 +79,7 @@ func (rn *rootNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 		return nil, syscall.ENOENT
 	}
 
-	leafNode := rn.credentialFiles[idx]
+	leafNode := rn.leafNodes[idx]
 
 	return rn.NewInode(ctx, leafNode, fs.StableAttr{
 		// Mode: ,

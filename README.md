@@ -33,6 +33,8 @@ Use cases:
 
 ## Config
 
+Create a yaml config file like this:
+
 ```yaml
 app:
   log:
@@ -64,6 +66,16 @@ fs:
       # how long will an authorization last?
       # defaults to 0, which means always request authorization
       permitDuration: 5s
+```
+
+## Build
+
+Run `make credentialfs` in the project root, you can find built executable at `./build/credentialfs`
+
+## Run
+
+```bash
+/path/to/credentialfs -c /path/to/your/config
 ```
 
 ## Acknowledgement

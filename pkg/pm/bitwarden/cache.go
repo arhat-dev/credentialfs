@@ -7,7 +7,7 @@ import (
 
 // TODO: generalize cipher index and move to pm/utils.go
 
-type cipherCacheKey struct {
+type cacheKey struct {
 	// plaintext
 	// item name
 	ItemName string
@@ -17,7 +17,7 @@ type cipherCacheKey struct {
 	ItemKey string
 }
 
-type cipherValue struct {
+type cacheValue struct {
 	// encrypted value
 	Value []byte
 
@@ -30,13 +30,13 @@ type cipherValue struct {
 
 func newCipherCache() *cipherCache {
 	return &cipherCache{
-		m:  make(map[cipherCacheKey]*cipherValue),
+		m:  make(map[cacheKey]*cacheValue),
 		mu: &sync.RWMutex{},
 	}
 }
 
 type cipherCache struct {
-	m map[cipherCacheKey]*cipherValue
+	m map[cacheKey]*cacheValue
 
 	mu *sync.RWMutex
 }
@@ -50,10 +50,10 @@ func (d *cipherCache) Add(
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	d.m[cipherCacheKey{
+	d.m[cacheKey{
 		ItemName: itemName,
 		ItemKey:  itemKey,
-	}] = &cipherValue{
+	}] = &cacheValue{
 		Value: value,
 		URL:   url,
 		Key:   key,
@@ -62,11 +62,11 @@ func (d *cipherCache) Add(
 
 func (d *cipherCache) Get(
 	itemName, itemKey string,
-) *cipherValue {
+) *cacheValue {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	val, ok := d.m[cipherCacheKey{
+	val, ok := d.m[cacheKey{
 		ItemName: itemName,
 		ItemKey:  itemKey,
 	}]
@@ -81,10 +81,10 @@ func (d *cipherCache) Clear() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	keys := make([]*cipherCacheKey, len(d.m))
+	keys := make([]*cacheKey, len(d.m))
 	i := 0
 	for k := range d.m {
-		keys[i] = &cipherCacheKey{
+		keys[i] = &cacheKey{
 			ItemName: k.ItemName,
 			ItemKey:  k.ItemKey,
 		}

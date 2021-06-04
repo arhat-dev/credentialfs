@@ -43,7 +43,7 @@ fs:
   # global mountpoint, all your credentials will be mounted to this
   # directory, you can find all files listed in `fs.spec[*].mounts.from`
   # in this directory, however their names are hex encoded string of
-  # `fs.spec[*].mounts.to`
+  # sha256 hash of `fs.spec[*].mounts.to`
   mountpoint: ${HOME}/.credentials
   # show fuse debug log output
   debug: false

@@ -4,9 +4,10 @@
 package fs
 
 import (
+	"context"
 	"fmt"
 )
 
-func createFS(at string, debug bool) (Filesystem, error) {
+func createFS(ctx context.Context, at string, debug bool) (Filesystem, error) {
 	return nil, fmt.Errorf("unsupported")
 }

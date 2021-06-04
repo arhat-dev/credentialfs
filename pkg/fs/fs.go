@@ -12,7 +12,7 @@ const (
 
 type Filesystem interface {
 	// Start serving files in background (mount)
-	Start(ctx context.Context) error
+	Start() error
 
 	// Stop background serving (unmount)
 	Stop() error
@@ -25,6 +25,6 @@ type Filesystem interface {
 	) error
 }
 
-func CreateFilesystem(at string, debug bool) (Filesystem, error) {
-	return createFS(at, debug)
+func CreateFilesystem(ctx context.Context, at string, debug bool) (Filesystem, error) {
+	return createFS(ctx, at, debug)
 }

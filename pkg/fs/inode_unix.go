@@ -5,10 +5,8 @@ package fs
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"sync"
 	"syscall"
@@ -84,12 +82,6 @@ func (rn *rootNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 }
 
 func newLeafNode(to string, data []byte, fs *filesystem, permitDuration time.Duration) *leafNode {
-	key := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, key)
-	if err != nil {
-		panic(fmt.Errorf("failed to generate random key: %w", err))
-	}
-
 	return &leafNode{
 		fs: fs,
 

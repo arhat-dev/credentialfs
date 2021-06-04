@@ -6,19 +6,38 @@ import (
 	"time"
 
 	"arhat.dev/pkg/queue"
+	"go.uber.org/multierr"
 
 	"arhat.dev/credentialfs/pkg/auth"
 )
 
-func newAuthManager() *authManager {
+func newAuthManager(runningCtx context.Context) *authManager {
+	ctx, cancel := context.WithCancel(runningCtx)
+
 	return &authManager{
+		ctx:    ctx,
+		cancel: cancel,
+
+		workerExited: make(chan struct{}),
+
 		tq: queue.NewTimeoutQueue(),
+
+		pendingDestroyTasks: &sync.Map{},
+
 		mu: &sync.Mutex{},
 	}
 }
 
 type authManager struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	workerExited chan struct{}
+
 	tq *queue.TimeoutQueue
+
+	pendingDestroyTasks *sync.Map
+
 	mu *sync.Mutex
 }
 
@@ -34,22 +53,103 @@ type (
 )
 
 // Start in background
-func (m *authManager) Start(ctx context.Context) {
-	m.tq.Start(ctx.Done())
+func (m *authManager) Start() {
+	stopSig := m.ctx.Done()
+
+	m.tq.Start(stopSig)
 	ch := m.tq.TakeCh()
-
 	go func() {
-		for td := range ch {
-			k := td.Data.(*timeoutDataValue)
-			err := auth.DestroyAuthorization(k.authData)
-			if err != nil {
-				// TODO: log error
+		defer close(m.workerExited)
 
-				// retry in 1s
-				_ = m.tq.OfferWithDelay(td.Key, td.Data, time.Second)
+		for {
+			select {
+			case <-stopSig:
+				return
+			case td := <-ch:
+				k := td.Data.(*timeoutDataValue)
+				err := auth.DestroyAuthorization(k.authData)
+				if err != nil {
+					// TODO: log error
+
+					// retry in 1s
+					_ = m.tq.OfferWithDelay(td.Key, td.Data, time.Second)
+				}
 			}
 		}
 	}()
+}
+
+func (m *authManager) Stop() (err error) {
+	m.cancel()
+
+	// wait until no one consumes takeCh
+	<-m.workerExited
+
+	destroyAuthWithRetry := func(td *queue.TimeoutData) {
+		defer func() {
+			// prevent null pointer
+			rec := recover()
+			if rec != nil {
+				// TODO: log error
+				_ = rec
+			}
+		}()
+
+		var err2 error
+		for i := 0; i < 5; i++ {
+			err2 = auth.DestroyAuthorization(td.Data.(*timeoutDataValue).authData)
+			if err2 == nil {
+				continue
+			}
+		}
+
+		err = multierr.Append(
+			err,
+			err2,
+		)
+	}
+
+	ch := m.tq.TakeCh()
+
+	timer := time.NewTimer(0)
+	if !timer.Stop() {
+		<-timer.C
+	}
+
+	// the ch is bufferred, we can drain it without any help
+	// by checking its buffered size
+	for len(ch) > 0 {
+		td := <-ch
+		destroyAuthWithRetry(td)
+
+		// if there is no bufferred data in channel,
+		// chances are that the sender is not working.
+		// wait for 1s for extreme condition
+	waitLoop:
+		for len(ch) == 0 {
+			_ = timer.Reset(time.Second)
+
+			select {
+			case td = <-ch:
+				if !timer.Stop() {
+					<-timer.C
+				}
+
+				destroyAuthWithRetry(td)
+			case <-timer.C:
+				_ = timer.Stop()
+				break waitLoop
+			}
+		}
+	}
+
+	// we have drained the ch, now we just need to handle data not timed out
+
+	for _, td := range m.tq.Remains() {
+		destroyAuthWithRetry(&td)
+	}
+
+	return
 }
 
 // RequestAuth checks if the authorization is still valid before actually request

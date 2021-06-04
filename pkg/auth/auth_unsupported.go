@@ -4,8 +4,8 @@
 package auth
 
 // RequestAuthorization requests user authorization
-func RequestAuthorization(key, prompt string) error {
-	return nil
+func RequestAuthorization(key, prompt string) (AuthorizationData, error) {
+	return nil, nil
 }
 
 // DestroyAuthorization

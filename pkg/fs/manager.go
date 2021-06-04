@@ -64,12 +64,12 @@ func (m *Manager) Start() (err error) {
 		}
 	}()
 
-	m.fs, err = CreateFilesystem(m.fsMountpoint, m.debugFilesystem)
+	m.fs, err = CreateFilesystem(m.ctx, m.fsMountpoint, m.debugFilesystem)
 	if err != nil {
 		return fmt.Errorf("failed to create fuse filesystem: %w", err)
 	}
 
-	err = m.fs.Start(m.ctx)
+	err = m.fs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start fuse filesystem: %w", err)
 	}

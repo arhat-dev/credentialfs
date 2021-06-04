@@ -20,7 +20,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-func createFS(mountPoint string, debug bool) (_ Filesystem, err error) {
+func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem, err error) {
 	root := newRootNode()
 
 	var options []string
@@ -57,13 +57,23 @@ func createFS(mountPoint string, debug bool) (_ Filesystem, err error) {
 		return nil, fmt.Errorf("failed to create fuse server: %w", err)
 	}
 
-	fs := newFilesystem(mountPoint, root, srv)
+	fs := newFilesystem(ctx, mountPoint, root, srv)
 
 	return fs, nil
 }
 
-func newFilesystem(mountpoint string, root *rootNode, srv *fuse.Server) *filesystem {
+func newFilesystem(
+	parentCtx context.Context,
+	mountpoint string,
+	root *rootNode,
+	srv *fuse.Server,
+) *filesystem {
+	ctx, cancel := context.WithCancel(parentCtx)
+
 	return &filesystem{
+		ctx:    ctx,
+		cancel: cancel,
+
 		mountpoint: mountpoint,
 
 		started: 0,
@@ -74,13 +84,16 @@ func newFilesystem(mountpoint string, root *rootNode, srv *fuse.Server) *filesys
 
 		symlinkFiles: nil,
 
-		authManager: newAuthManager(),
+		authManager: newAuthManager(ctx),
 
 		mu: &sync.Mutex{},
 	}
 }
 
 type filesystem struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	mountpoint string
 
 	started uint32
@@ -96,11 +109,11 @@ type filesystem struct {
 	mu *sync.Mutex
 }
 
-func (fs *filesystem) Start(ctx context.Context) error {
+func (fs *filesystem) Start() error {
 	if atomic.CompareAndSwapUint32(&fs.started, 0, 1) {
 		// do once
 
-		fs.authManager.Start(ctx)
+		fs.authManager.Start()
 	}
 
 	go func() {
@@ -109,8 +122,8 @@ func (fs *filesystem) Start(ctx context.Context) error {
 				return
 			}
 
-			// TODO: log server restart
-			_ = fs.Start(ctx)
+			// TODO: log fuse server restart
+			_ = fs.Start()
 		}()
 
 		fs.srv.Serve()
@@ -126,6 +139,8 @@ func (fs *filesystem) Stop() error {
 		return nil
 	}
 
+	fs.cancel()
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -133,6 +148,8 @@ func (fs *filesystem) Stop() error {
 	for _, f := range fs.symlinkFiles {
 		err = multierr.Append(err, os.Remove(f))
 	}
+
+	err = multierr.Append(err, fs.authManager.Stop())
 
 	return multierr.Append(err, fs.srv.Unmount())
 }

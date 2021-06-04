@@ -23,6 +23,9 @@ github.com/inconshreveable/mousetrap
 # github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 ## explicit
 github.com/keybase/go-keychain
+# github.com/mitchellh/go-ps v1.0.0
+## explicit
+github.com/mitchellh/go-ps
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/spf13/cobra v1.1.3

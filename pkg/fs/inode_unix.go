@@ -15,6 +15,7 @@ import (
 	"arhat.dev/pkg/hashhelper"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	"github.com/mitchellh/go-ps"
 )
 
 func newRootNode() *rootNode {
@@ -131,12 +132,29 @@ func (n *leafNode) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrO
 }
 
 func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	caller, ok := fuse.FromContext(ctx)
+	if !ok {
+		return nil, 0, syscall.EACCES
+	}
+
+	var processName string
+	p, err := ps.FindProcess(int(caller.Pid))
+	if err == nil {
+		processName = p.Executable()
+	} else {
+		processName = fmt.Sprintf("PID:%d", caller.Pid)
+	}
+
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
-			authRequestKey := fmt.Sprintf("dev.arhat.credentialfs.file.read.%s", n.hashedTarget)
+			authRequestKey := fmt.Sprintf(
+				"dev.arhat.credentialfs.file.read.%s.%s",
+				n.hashedTarget, hex.EncodeToString(hashhelper.Sha256Sum([]byte(processName))),
+			)
 			prompt := fmt.Sprintf(
-				"Your credential in %s is about to be read, please authorize", n.target,
+				"%q is trying to read your credential at %s, authorize to proceed",
+				processName, n.target,
 			)
 
 			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt)
@@ -179,6 +197,8 @@ func (n *leafNode) Read(ctx context.Context, f fs.FileHandle, dest []byte, off i
 func (n *leafNode) Write(
 	ctx context.Context, f fs.FileHandle, data []byte, off int64,
 ) (written uint32, errno syscall.Errno) {
+	// TODO: how we can handle write operations, we have to work with
+	// 		 password managers when writing
 	return 0, syscall.ENOSYS
 }
 

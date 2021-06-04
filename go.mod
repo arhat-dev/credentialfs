@@ -8,6 +8,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.7.0
 	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
+	github.com/mitchellh/go-ps v1.0.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/multierr v1.6.0

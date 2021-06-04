@@ -65,8 +65,12 @@ fs:
     - from: <Item Name>/<Item Key>
       # local mount path (filename or dir)
       to: ${HOME}/.ssh/joe.doyle
-      # how long will an authorization last?
+      # how long will a successful authorization valid for
       # defaults to 0, which means always request authorization
+      #
+      # NOTE: the authorization is process specific, if you use
+      #       different tools to read from a same credential file
+      #       thir permit durations are timed individually
       permitDuration: 5s
 ```
 

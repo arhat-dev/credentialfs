@@ -8,7 +8,7 @@ func RequestAuthorization(key, prompt string) (AuthorizationData, error) {
 	return nil, nil
 }
 
-// DestroyAuthorization
+// DestroyAuthorization of previously created grant
 func DestroyAuthorization(d AuthorizationData) error {
 	return nil
 }

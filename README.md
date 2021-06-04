@@ -32,6 +32,9 @@ Another solution is to mount a custom filesystem, which integrates with your pas
   - [ ] `linux`
 - Password Managers
   - [x] [`bitwarden`](./docs/pm/bitwarden.md)
+- Login Method
+  - [x] Simple username + password
+  - [ ] 2FA
 
 ## Config
 
@@ -51,6 +54,10 @@ fs:
   mountpoint: ${HOME}/.credentials
   # show fuse debug log output
   debug: false
+
+  # where to login
+  # currently only supports `cli`
+  loginInterface: cli
   # filesystem spec
   # list of password managers and their file mounts
   spec:

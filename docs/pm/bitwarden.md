@@ -17,4 +17,6 @@
 endpointURL: https://bw.internal
 # save your username and password to system keychain
 saveLogin: false
+# 2FA method name, currently no supported
+twoFactorMethod: ""
 ```

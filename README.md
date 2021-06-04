@@ -16,11 +16,13 @@ One solution is to develop a plugin or a wrapper script for these apps to read f
 
 Another solution is to mount a custom filesystem, which integrates with your password manager, and doesn't store credentials to local disk, everytime there is a file read request to your credential file, the filesystem daemon will request authorization via system security api from user to allow or deny the  read request. To protect these credentials from being overriden, you can pre-configure whether the filesystem is mounted read-only. And to update these credentials, you can use compaion command line tools to commit updates to a file
 
-Use cases:
+## Suitable Use Cases
 
-- Sync credentials files among your working computers with online password manager
+- Sync credential files among your working computers with online password manager
 - Store credentials directly in config files (e.g. kubeconfig using client certificate for authentication)
   - Then you can manage your home directory in a git system safely
+- Store passwords in files (e.g. ssh password)
+  - Then you can `cat /path/to/password` in your scripts, and run your scripts with authorization process
 
 ## Support Matrix
 

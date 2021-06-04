@@ -61,9 +61,15 @@ fs:
       driver: bitwarden
       # please read ./docs/pm/{driver}.md for config reference
       config: {}
+    # mount credentials as files from the password manager above
+    #
+    # NOTE: The mount operation here actually creates symlinks for your
+    #       `mounts[*].to` since we haven't found a reasonabley easy way 
+    #       to support file bind mount on all platforms, please let us
+    #       know by creating a new issue if you have a good idea.
     mounts:
     - from: <Item Name>/<Item Key>
-      # local mount path (filename or dir)
+      # local mount path
       to: ${HOME}/.ssh/joe.doyle
       # how long will a successful authorization valid for
       # defaults to 0, which means always request authorization

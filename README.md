@@ -27,7 +27,7 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 ## Support Matrix
 
 - OS
-  - [x] `macos`
+  - [x] `macos` (requires [`osxfuse`](https://github.com/osxfuse/osxfuse))
   - [ ] `windows`
   - [ ] `linux`
 - Password Managers

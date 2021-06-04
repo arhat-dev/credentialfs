@@ -71,7 +71,7 @@ fs:
     # mount credentials as files from the password manager above
     #
     # NOTE: The mount operation here actually creates symlinks for your
-    #       `mounts[*].to` since we haven't found a reasonabley easy way 
+    #       `mounts[*].to` since we haven't found a reasonabley easy way
     #       to support file bind mount on all platforms, please let us
     #       know by creating a new issue if you have a good idea.
     mounts:

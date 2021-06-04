@@ -45,7 +45,9 @@ func init() {
 				configName: configName,
 				saveLogin:  c.SaveLogin,
 
-				cipherIndex: newCipherIndex(),
+				cache: newCipherCache(),
+
+				twoFactorKind: pm.TwoFactorKind(strings.ToLower(c.TwoFactorMethod)),
 
 				mu: &sync.RWMutex{},
 			}
@@ -68,32 +70,12 @@ func init() {
 }
 
 type Config struct {
-	EndpointURL string `json:"endpointURL" yaml:"endpointURL"`
-	SaveLogin   bool   `json:"saveLogin" yaml:"saveLogin"`
+	EndpointURL     string `json:"endpointURL" yaml:"endpointURL"`
+	SaveLogin       bool   `json:"saveLogin" yaml:"saveLogin"`
+	TwoFactorMethod string `json:"twoFactorMethod" yaml:"twoFactorMethod"`
 }
 
 var _ pm.Interface = (*Driver)(nil)
-
-type cipherIndexKey struct {
-	// plaintext
-	// item name
-	ItemName string
-
-	// plaintext
-	// field name or attachment filename
-	ItemKey string
-}
-
-type cipherValue struct {
-	// encrypted value
-	Value []byte
-
-	// plaintext url for attachment
-	URL string
-
-	// decrypted attachment key or org key
-	Key *bitwardenKey
-}
 
 type Driver struct {
 	ctx context.Context
@@ -116,7 +98,9 @@ type Driver struct {
 	encKey         *bitwardenKey
 	privateKey     *bitwardenKey
 
-	*cipherIndex
+	cache *cipherCache
+
+	twoFactorKind pm.TwoFactorKind
 
 	mu *sync.RWMutex
 }
@@ -149,10 +133,9 @@ func (d *Driver) update(f func()) {
 	f()
 }
 
-func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
+func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 	var (
-		username string
-		password string
+		input *pm.LoginInput
 
 		err error
 
@@ -164,13 +147,15 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 
 		_ = auth.DeleteLogin(Name, d.configName)
 
-		username, password, err = showLoginPrompt()
+		input, err = requestUserLogin(d.twoFactorKind, input)
 		if err != nil {
 			return err
 		}
 	} else {
+		input = &pm.LoginInput{}
+
 		// login may be saved before
-		username, password, err = auth.GetLogin(Name, d.configName)
+		input.Username, input.Password, err = auth.GetLogin(Name, d.configName)
 		if err != nil {
 			switch {
 			case errors.Is(err, auth.ErrNotFound):
@@ -182,45 +167,68 @@ func (d *Driver) Login(showLoginPrompt pm.LoginInputCallbackFunc) error {
 			}
 
 			loginUpdated = true
-			username, password, err = showLoginPrompt()
+			input, err = requestUserLogin(d.twoFactorKind, input)
+			if err != nil {
+				return err
+			}
+		}
+
+		if d.twoFactorKind != pm.TwoFactorKindNone {
+			// we only haver username and password stored in system keychain
+			// 2FA requires extra codes
+			input, err = requestUserLogin(d.twoFactorKind, input)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err = d.login(password, username)
+	err = d.login(input)
 	if err != nil {
 		return err
 	}
 
-	if d.saveLogin && loginUpdated {
-		err = auth.SaveLogin(Name, d.configName, username, password)
+	if d.saveLogin && loginUpdated &&
+		(len(input.Username) != 0 || len(input.Password) != 0) {
+
+		err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
 		if err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (d *Driver) Sync(stop <-chan struct{}) (<-chan pm.CredentialUpdate, error) {
 	d.mu.RLock()
 	encKey := d.encKey
 	d.mu.RUnlock()
 
-	return d.sync(encKey)
+	err := d.buildCache(encKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: implement continuous sync
+
+	return nil, nil
 }
 
-func (d *Driver) Get(key string) ([]byte, error) {
+func (d *Driver) Subscribe(key string) ([]byte, error) {
 	parts := strings.SplitN(key, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid key %q", key)
 	}
 
-	cipher := d.cipherIndex.lookupIndexedCipher(parts[0], parts[1])
+	cipher := d.cache.Get(parts[0], parts[1])
 	if cipher == nil {
 		return nil, fmt.Errorf("credential %q not found", key)
 	}
 
 	if len(cipher.URL) == 0 {
 		// not an attachment, return value directly
+		// TODO: add this key to subscription
 		return cipher.Value, nil
 	}
 
@@ -252,14 +260,19 @@ func (d *Driver) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read attachment data: %w", err)
 	}
 
-	// TODO: decrypt attachment data with key
-
 	data, err = decryptData(data, cipher.Key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
 	}
 
+	// TODO: add this key to subscription
+
 	return data, nil
+}
+
+// Flush previously built in memory cache
+func (d *Driver) Flush() {
+	d.cache.Clear()
 }
 
 func (d *Driver) Update(key string, data []byte) error {

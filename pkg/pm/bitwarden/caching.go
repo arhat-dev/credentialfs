@@ -9,7 +9,7 @@ import (
 	"arhat.dev/credentialfs/pkg/pm"
 )
 
-func (d *Driver) sync(globalEncKey *bitwardenKey) error {
+func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 	resp, err := d.client.GetSync(d.ctx, &bw.GetSyncParams{
 		ExcludeDomains: constant.True(),
 	}, d.prependPath("api"))
@@ -78,17 +78,17 @@ func (d *Driver) sync(globalEncKey *bitwardenKey) error {
 			return err
 		}
 
-		err = d.parseCipherLogin(string(itemName), c.Login, encKey)
+		err = d.parseAndCacheCipherLogin(string(itemName), c.Login, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher login: %w", err)
 		}
 
-		err = d.parseCipherFields(string(itemName), c.Fields, encKey)
+		err = d.parseAndCacheCipherFields(string(itemName), c.Fields, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher fields: %w", err)
 		}
 
-		err = d.parseCihperAttachments(string(itemName), c.Attachments, encKey)
+		err = d.parseAndCacheCipherAttachments(string(itemName), c.Attachments, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher attachments: %w", err)
 		}
@@ -97,7 +97,7 @@ func (d *Driver) sync(globalEncKey *bitwardenKey) error {
 	return nil
 }
 
-func (d *Driver) parseCipherLogin(
+func (d *Driver) parseAndCacheCipherLogin(
 	itemName string,
 	login *bw.CipherLoginModel,
 	key *bitwardenKey,
@@ -120,7 +120,7 @@ func (d *Driver) parseCipherLogin(
 			return fmt.Errorf("failed to decrypt field name: %w", err)
 		}
 
-		d.updateCipherIndex(itemName, pm.UsernameIndexKey, username, "", nil)
+		d.cache.Add(itemName, pm.IndexKeyUsername, username, "", nil)
 	}
 
 	if p := login.Password; p != nil {
@@ -134,13 +134,13 @@ func (d *Driver) parseCipherLogin(
 			return fmt.Errorf("failed to decrypt field name: %w", err)
 		}
 
-		d.updateCipherIndex(itemName, pm.PasswordIndexKey, password, "", nil)
+		d.cache.Add(itemName, pm.IndexKeyPassword, password, "", nil)
 	}
 
 	return nil
 }
 
-func (d *Driver) parseCipherFields(
+func (d *Driver) parseAndCacheCipherFields(
 	itemName string,
 	fields *[]bw.CipherFieldModel,
 	key *bitwardenKey,
@@ -177,13 +177,13 @@ func (d *Driver) parseCipherFields(
 			}
 		}
 
-		d.updateCipherIndex(itemName, string(fieldName), fieldValue, "", nil)
+		d.cache.Add(itemName, string(fieldName), fieldValue, "", nil)
 	}
 
 	return nil
 }
 
-func (d *Driver) parseCihperAttachments(
+func (d *Driver) parseAndCacheCipherAttachments(
 	itemName string,
 	attachments *[]bw.AttachmentResponseModel,
 	key *bitwardenKey,
@@ -220,7 +220,7 @@ func (d *Driver) parseCihperAttachments(
 			}
 		}
 
-		d.updateCipherIndex(itemName, string(filename), nil, *a.Url, attachmentEncKey)
+		d.cache.Add(itemName, string(filename), nil, *a.Url, attachmentEncKey)
 	}
 
 	return nil

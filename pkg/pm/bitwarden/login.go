@@ -17,6 +17,8 @@ import (
 	bw "arhat.dev/bitwardenapi/bwinternal"
 	"github.com/deepmap/oapi-codegen/pkg/types"
 	"golang.org/x/crypto/pbkdf2"
+
+	"arhat.dev/credentialfs/pkg/pm"
 )
 
 func (d *Driver) prependPath(p string) bw.RequestEditorFn {
@@ -32,8 +34,8 @@ func (d *Driver) prependPath(p string) bw.RequestEditorFn {
 	}
 }
 
-func (d *Driver) login(masterPassword, email string) error {
-	email = strings.ToLower(strings.TrimSpace(email))
+func (d *Driver) login(input *pm.LoginInput) error {
+	email := strings.ToLower(strings.TrimSpace(input.Username))
 
 	resp, err := d.client.PostAccountsPrelogin(d.ctx, bw.PostAccountsPreloginJSONRequestBody{
 		Email: types.Email(email),
@@ -58,7 +60,7 @@ func (d *Driver) login(masterPassword, email string) error {
 		kdfIterationsPtr = pr.JSON200.KdfIterations
 	}
 
-	masterKey, err := makeMasterKey(masterPassword, email, kdfTypePtr, kdfIterationsPtr)
+	masterKey, err := makeMasterKey(input.Password, email, kdfTypePtr, kdfIterationsPtr)
 	if err != nil {
 		return fmt.Errorf("failed to make kdf key: %w", err)
 	}
@@ -72,7 +74,7 @@ func (d *Driver) login(masterPassword, email string) error {
 	values.Set("deviceName", "credentialfs")
 	values.Set("deviceType", getDeviceType())
 
-	hashedPassword := hashPassword(masterPassword, masterKey)
+	hashedPassword := hashPassword(input.Password, masterKey)
 	values.Set("password", hashedPassword)
 
 	loginURL, err := url.Parse(d.client.Server)

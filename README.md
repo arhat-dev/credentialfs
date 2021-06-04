@@ -61,6 +61,9 @@ fs:
     - from: <Item Name>/<Item Key>
       # local mount path (filename or dir)
       to: ${HOME}/.ssh/joe.doyle
+      # how long will an authorization last?
+      # defaults to 0, which means always request authorization
+      permitDuration: 5s
 ```
 
 ## Acknowledgement

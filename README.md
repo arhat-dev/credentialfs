@@ -35,8 +35,9 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 
 ## Features
 
-- Mount your credentials as in memory files
-- Continuous syncing with your own password manager
+- [x] Mount your credentials as in memory files for authorized automation
+- [x] Continuous syncing with your own password manager
+- [ ] Encrypted in memory credential cache (see [issue#4](https://github.com/arhat-dev/credentialfs/issues/4))
 
 ## Support Matrix
 

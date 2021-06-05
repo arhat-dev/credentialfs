@@ -9,18 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"arhat.dev/credentialfs/pkg/pm"
 	"github.com/vmihailenco/msgpack/v5"
 	"nhooyr.io/websocket"
+
+	"arhat.dev/credentialfs/pkg/pm"
 )
 
 type syncCipherNotification struct {
-	ID             string    `msgpack:"Id"`
-	UserID         string    `msgpack:"UserId"`
-	OrganizationId string    `msgpack:"OrganizationId"`
-	CollectionIds  []string  `msgpack:"CollectionIds"`
-	UpdatedAt      time.Time `msgpack:"Date"`
-	RevisionDate   time.Time `msgpack:"RevisionDate"`
+	ID            string    `msgpack:"Id"`
+	UserID        string    `msgpack:"UserId"`
+	OrgID         string    `msgpack:"OrganizationId"`
+	CollectionIds []string  `msgpack:"CollectionIds"`
+	UpdatedAt     time.Time `msgpack:"Date"`
+	RevisionDate  time.Time `msgpack:"RevisionDate"`
 }
 
 func (d *Driver) startSyncing(ctx context.Context) error {
@@ -120,7 +121,12 @@ func (d *Driver) startSyncing(ctx context.Context) error {
 			// TODO: log syncing
 
 			// TODO: find a better to refresh cache
-			d.buildCache(d.encKey)
+			err = d.buildCache(d.encKey)
+			if err != nil {
+				// TODO: log re-sync error
+				continue
+			}
+
 			d.Flush()
 
 			var updates []*pm.CredentialUpdate

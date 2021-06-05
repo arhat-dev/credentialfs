@@ -108,7 +108,7 @@ func parseCipherLogin(
 	cipherName, cipherID string,
 	login *bw.CipherLoginModel,
 	key *bitwardenKey,
-) (ret *cacheSet, _ error) {
+) (ret *cacheSet, err error) {
 	switch {
 	case login == nil:
 		return
@@ -118,13 +118,18 @@ func parseCipherLogin(
 
 	ret = newCacheSet()
 	if u := login.Username; u != nil {
-		usernameData, err := decodeProtectedData(*u)
+		var (
+			usernameData *protectedData
+			username     []byte
+		)
+
+		usernameData, err = decodeProtectedData(*u)
 		if err != nil {
 			err = fmt.Errorf("failed to decode field name: %w", err)
 			return
 		}
 
-		username, err := usernameData.decrypt(key)
+		username, err = usernameData.decrypt(key)
 		if err != nil {
 			err = fmt.Errorf("failed to decrypt field name: %w", err)
 			return
@@ -134,13 +139,17 @@ func parseCipherLogin(
 	}
 
 	if p := login.Password; p != nil {
-		passwordData, err := decodeProtectedData(*p)
+		var (
+			passwordData *protectedData
+			password     []byte
+		)
+		passwordData, err = decodeProtectedData(*p)
 		if err != nil {
 			err = fmt.Errorf("failed to decode field name: %w", err)
 			return
 		}
 
-		password, err := passwordData.decrypt(key)
+		password, err = passwordData.decrypt(key)
 		if err != nil {
 			err = fmt.Errorf("failed to decrypt field name: %w", err)
 			return
@@ -156,7 +165,7 @@ func parseCipherFields(
 	cipherName, cipherID string,
 	fields *[]bw.CipherFieldModel,
 	key *bitwardenKey,
-) (ret *cacheSet, _ error) {
+) (ret *cacheSet, err error) {
 	if fields == nil {
 		return
 	}
@@ -167,21 +176,30 @@ func parseCipherFields(
 			continue
 		}
 
-		fieldNameData, err := decodeProtectedData(*f.Name)
+		var (
+			fieldNameData *protectedData
+			fieldName     []byte
+		)
+
+		fieldNameData, err = decodeProtectedData(*f.Name)
 		if err != nil {
 			err = fmt.Errorf("failed to decode field name: %w", err)
 			return
 		}
 
-		fieldName, err := fieldNameData.decrypt(key)
+		fieldName, err = fieldNameData.decrypt(key)
 		if err != nil {
 			err = fmt.Errorf("failed to decrypt field name: %w", err)
 			return
 		}
 
-		var fieldValue []byte
+		var (
+			fieldValueData *protectedData
+			fieldValue     []byte
+		)
+
 		if f.Value != nil {
-			fieldValueData, err := decodeProtectedData(*f.Value)
+			fieldValueData, err = decodeProtectedData(*f.Value)
 			if err != nil {
 				err = fmt.Errorf("failed to decode field value: %w", err)
 				return
@@ -204,7 +222,7 @@ func parseCipherAttachments(
 	cipherName, cipherID string,
 	attachments *[]bw.AttachmentResponseModel,
 	key *bitwardenKey,
-) (ret *cacheSet, _ error) {
+) (ret *cacheSet, err error) {
 	if attachments == nil {
 		return
 	}
@@ -215,13 +233,18 @@ func parseCipherAttachments(
 			continue
 		}
 
-		filenameData, err := decodeProtectedData(*a.FileName)
+		var (
+			filenameData *protectedData
+			filename     []byte
+		)
+
+		filenameData, err = decodeProtectedData(*a.FileName)
 		if err != nil {
 			err = fmt.Errorf("failed to decode attachment filename: %w", err)
 			return
 		}
 
-		filename, err := filenameData.decrypt(key)
+		filename, err = filenameData.decrypt(key)
 		if err != nil {
 			err = fmt.Errorf("failed to decrypt attachment filename: %w", err)
 			return
@@ -229,7 +252,8 @@ func parseCipherAttachments(
 
 		attachmentEncKey := key
 		if a.Key != nil {
-			keyData, err := decodeProtectedData(*a.Key)
+			var keyData *protectedData
+			keyData, err = decodeProtectedData(*a.Key)
 			if err != nil {
 				err = fmt.Errorf("failed to decode attachment key: %w", err)
 				return

@@ -10,11 +10,11 @@ Userspace filesystem daemon for credentials stored in password managers
 
 ## Why this project?
 
-Say you are using password manager (abbrv. `pm`) for your own credential management, but you always have to store some of the credentials locally for apps without the support for reading from system keychain, that can be risky once you have your computer hacked and the hacker can read these local credentials without your permit.
+Say you are using password manager (abbrv. `pm`) for your own credential management, but you always have to store some of the credentials locally for apps without the support for reading from system keychain (e.g. `rclone`, `kubectl`), that can be risky once you have your computer hacked and the hacker can read these local credentials without your permit.
 
 One solution is to develop a plugin or a wrapper script for these apps to read from system keychain, so you can store these credentials locally and safely.
 
-Another solution is to mount a custom filesystem, which integrates with your password manager, and doesn't store credentials to local disk, everytime there is a file read request to your credential file, the filesystem daemon will request authorization via system security api from user to allow or deny the  read request. To protect these credentials from being overriden, you can pre-configure whether the filesystem is mounted read-only. And to update these credentials, you can use compaion command line tools to commit updates to a file
+Another solution is to mount a custom filesystem, which integrates with your password manager, and doesn't store credentials to local disk, everytime there is a file read operation to your credential files, the filesystem daemon will request explicit user authorization using system security feature to allow or deny the read operation.
 
 ## Suitable Use Cases
 
@@ -26,10 +26,11 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 
 ## How it works?
 
-- Firstly it will sync credentials with your password managers, keep those required (as configured in the config file) in memory.
+- Firstly it will sync credentials from your password managers, keep those required (as configured in the config file) in memory.
 - Then it will start a FUSE server, with all your credentials mounted in a single directory, symlink them to their target paths.
-- When there is a `open()` request to your credential, it will prompt an authorization dialog with caller's `User Name (uid)`, `Process Name (pid)`, `Parent Process Name (ppid)` through system's security api.
+- When there is a `open()` request to your credential, it will prompt an authorization dialog with caller's `User Name + uid`, `Process Name + pid`, `Parent Process Name + ppid` through system's security api.
   - The authorization request decision is made based on the value of `sha256sum(uid + "|" + pid + "|" + ppid + "|" + path)`
+    - __NOTE:__ To reduce uncessary authorization for command line users, `pid` here is the executable name (if we can determine).
 - The mounted credential (file) can only be read by the `open()` caller after a successful authorization.
   - You can configure how long a successful authorization will last to avoid frequent interruptions.
 
@@ -66,7 +67,9 @@ fs:
   # directory, you can find all files listed in `fs.spec[*].mounts.from`
   # in this directory, however their names are hex encoded string of
   # sha256 hash of `fs.spec[*].mounts.to`
-  mountpoint: ${HOME}/.credentials
+  #
+  # leave it empty to use random temporary dir for mountpoint
+  mountpoint: ""
 
   # show fuse debug log output
   debug: false
@@ -81,7 +84,7 @@ fs:
   - pm:
       # (required) unique name (among all local credentialfs config) of this password manager config
       name: my-pm
-      # (required) driver currently only supports `bitwarden`
+      # (required) currently only supports `bitwarden`
       driver: bitwarden
       # please read ./docs/pm/{driver}.md for config reference
       config: {}

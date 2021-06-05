@@ -20,7 +20,21 @@ import (
 )
 
 func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem, err error) {
-	root := newRootNode()
+	isTempMount := false
+
+	if len(mountPoint) == 0 {
+		mountPoint, err = os.MkdirTemp(os.TempDir(), "cfs-*")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temporary mountpoint: %w", err)
+		}
+
+		isTempMount = true
+		defer func() {
+			if err != nil {
+				_ = os.Remove(mountPoint)
+			}
+		}()
+	}
 
 	var options []string
 	switch runtime.GOOS {
@@ -41,6 +55,7 @@ func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem,
 		AllowOther:  true,
 	}
 
+	root := newRootNode()
 	fileFS := fs.NewNodeFS(root, &fs.Options{
 		MountOptions: mountOpts,
 		OnAdd:        func(ctx context.Context) {},
@@ -56,7 +71,7 @@ func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem,
 		return nil, fmt.Errorf("failed to create fuse server: %w", err)
 	}
 
-	fs := newFilesystem(ctx, mountPoint, root, srv)
+	fs := newFilesystem(ctx, mountPoint, root, srv, isTempMount)
 
 	return fs, nil
 }
@@ -66,6 +81,7 @@ func newFilesystem(
 	mountpoint string,
 	root *rootNode,
 	srv *fuse.Server,
+	isTempMount bool,
 ) *filesystem {
 	ctx, cancel := context.WithCancel(parentCtx)
 
@@ -73,7 +89,8 @@ func newFilesystem(
 		ctx:    ctx,
 		cancel: cancel,
 
-		mountpoint: mountpoint,
+		mountpoint:  mountpoint,
+		isTempMount: isTempMount,
 
 		root: root,
 		srv:  srv,
@@ -90,7 +107,8 @@ type filesystem struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	mountpoint string
+	mountpoint  string
+	isTempMount bool
 
 	root *rootNode
 	srv  *fuse.Server
@@ -138,12 +156,17 @@ func (fs *filesystem) Stop() error {
 	err = multierr.Append(err, fs.authManager.Stop())
 	err = multierr.Append(err, fs.srv.Unmount())
 
+	// usually system will remove these symlinks on fuse unmounted
+	// just remove expicitly to ensure
 	for _, f := range fs.symlinkFiles {
 		err2 := os.Remove(f)
 		if err2 != nil && !os.IsNotExist(err2) {
-			// usually system will remove these symlinks on fuse unmounted
 			err = multierr.Append(err, err2)
 		}
+	}
+
+	if fs.isTempMount {
+		err = multierr.Append(err, os.RemoveAll(fs.mountpoint))
 	}
 
 	return err

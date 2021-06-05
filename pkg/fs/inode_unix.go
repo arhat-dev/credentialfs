@@ -145,22 +145,6 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 		return nil, 0, syscall.EACCES
 	}
 
-	var processName string
-	p, err := ps.FindProcess(int(caller.Pid))
-	if err == nil {
-		processName = fmt.Sprintf("%q (pid=%d)", p.Executable(), caller.Pid)
-	} else {
-		processName = fmt.Sprintf("PID:%d", caller.Pid)
-	}
-
-	var parentProcessName string
-	pp, err := ps.FindProcess(p.PPid())
-	if err == nil {
-		parentProcessName = fmt.Sprintf("%q pid=%d", pp.Executable(), pp.Pid())
-	} else {
-		parentProcessName = fmt.Sprintf("PID:%d", p.PPid())
-	}
-
 	username := fmt.Sprintf("UID:%d", caller.Uid)
 	u, err := user.LookupId(strconv.FormatInt(int64(caller.Uid), 10))
 	if err != nil {
@@ -168,17 +152,42 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	}
 
 	if len(u.Name) != 0 {
-		username = u.Name
+		username = fmt.Sprintf("%s (uid=%d)", u.Name, caller.Uid)
+	}
+
+	var (
+		processName       string
+		parentProcessName string
+		ppid              int
+	)
+
+	p, err := ps.FindProcess(int(caller.Pid))
+	if err == nil {
+		ppid = p.PPid()
+		processName = fmt.Sprintf("%q (pid=%d)", p.Executable(), caller.Pid)
+
+		pp, err := ps.FindProcess(ppid)
+		if err == nil {
+			parentProcessName = fmt.Sprintf("%q pid=%d", pp.Executable(), pp.Pid())
+		} else {
+			parentProcessName = fmt.Sprintf("PID:%d", p.PPid())
+		}
+	} else {
+		processName = fmt.Sprintf("PID:%d", caller.Pid)
 	}
 
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
 			h := sha256.New()
-			h.Write([]byte(username))
-			h.Write([]byte(processName))
-			h.Write([]byte(parentProcessName))
-			h.Write([]byte(n.hashedTarget))
+
+			h.Write([]byte(strconv.FormatInt(int64(caller.Uid), 10)))
+			h.Write([]byte("|"))
+			h.Write([]byte(strconv.FormatInt(int64(caller.Pid), 10)))
+			h.Write([]byte("|"))
+			h.Write([]byte(strconv.FormatInt(int64(ppid), 10)))
+			h.Write([]byte("|"))
+			h.Write([]byte(n.target))
 
 			authRequestKey := fmt.Sprintf(
 				"dev.arhat.credentialfs.file.read.%s",

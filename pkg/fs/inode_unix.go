@@ -156,6 +156,7 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	}
 
 	var (
+		pidForHashing     string
 		processName       string
 		parentProcessName string
 		ppid              int
@@ -165,6 +166,7 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	if err == nil {
 		ppid = p.PPid()
 		processName = fmt.Sprintf("%q (pid=%d)", p.Executable(), caller.Pid)
+		pidForHashing = p.Executable()
 
 		pp, err := ps.FindProcess(ppid)
 		if err == nil {
@@ -174,6 +176,7 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 		}
 	} else {
 		processName = fmt.Sprintf("PID:%d", caller.Pid)
+		pidForHashing = processName
 	}
 
 	for i := 10; i < math.MaxInt16; i++ {
@@ -183,7 +186,7 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 
 			h.Write([]byte(strconv.FormatInt(int64(caller.Uid), 10)))
 			h.Write([]byte("|"))
-			h.Write([]byte(strconv.FormatInt(int64(caller.Pid), 10)))
+			h.Write([]byte(pidForHashing))
 			h.Write([]byte("|"))
 			h.Write([]byte(strconv.FormatInt(int64(ppid), 10)))
 			h.Write([]byte("|"))

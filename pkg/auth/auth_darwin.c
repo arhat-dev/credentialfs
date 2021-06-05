@@ -75,5 +75,13 @@ OSStatus request_auth(
 
 OSStatus destroy_auth(AuthorizationRef *ref_ptr)
 {
-    return AuthorizationFree(*ref_ptr, kAuthorizationFlagDestroyRights);
+    OSStatus code = AuthorizationFree(
+        *ref_ptr, kAuthorizationFlagDestroyRights);
+
+    if (code == errAuthorizationSuccess)
+    {
+        free(ref_ptr);
+    }
+
+    return 0;
 }

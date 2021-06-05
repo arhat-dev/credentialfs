@@ -24,6 +24,20 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 - Store passwords in files (e.g. ssh password)
   - Then you can `cat /path/to/password` in your scripts, and run your scripts with authorization process
 
+## How it works?
+
+- Firstly it will sync credentials with your password managers, keep those required (as configured in the config file) in memory.
+- Then it will start a FUSE server, with all your credentials mounted in a single directory, symlink them to their target paths.
+- When there is a `open()` request to your credential, it will prompt an authorization dialog with caller's `User Name (uid)`, `Process Name (pid)`, `Parent Process Name (ppid)` through system's security api.
+  - The authorization request decision is made based on the value of `sha256sum(uid + "|" + pid + "|" + ppid + "|" + path)`
+- The mounted credential (file) can only be read by the `open()` caller after a successful authorization.
+  - You can configure how long a successful authorization will last to avoid frequent interruptions.
+
+## Features
+
+- Mount your credentials as in memory files
+- Continuous syncing with your own password manager
+
 ## Support Matrix
 
 - OS
@@ -52,18 +66,20 @@ fs:
   # in this directory, however their names are hex encoded string of
   # sha256 hash of `fs.spec[*].mounts.to`
   mountpoint: ${HOME}/.credentials
+
   # show fuse debug log output
   debug: false
 
-  # where to login
+  # choose login interface
   # currently only supports `cli`
   loginInterface: cli
+
   # filesystem spec
   # list of password managers and their file mounts
   spec:
   - pm:
       # (required) unique name (among all local credentialfs config) of this password manager config
-      name: my-bitwarden-pm
+      name: my-pm
       # (required) driver currently only supports `bitwarden`
       driver: bitwarden
       # please read ./docs/pm/{driver}.md for config reference
@@ -78,6 +94,7 @@ fs:
     - from: <Item Name>/<Item Key>
       # local mount path
       to: ${HOME}/.ssh/joe.doyle
+
       # how long will a successful authorization valid for
       # defaults to 0, which means always request authorization
       #

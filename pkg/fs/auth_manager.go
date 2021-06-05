@@ -99,7 +99,7 @@ func (m *authManager) Stop() (err error) {
 		for i := 0; i < 5; i++ {
 			err2 = auth.DestroyAuthorization(td.Data.(*timeoutDataValue).authData)
 			if err2 == nil {
-				continue
+				break
 			}
 		}
 

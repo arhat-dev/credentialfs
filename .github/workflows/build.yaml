@@ -51,9 +51,7 @@ jobs:
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.freebsd.all TAGS=''
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.netbsd.all TAGS=''
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.openbsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.plan9.all TAGS=''
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.solaris.amd64 TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.aix.ppc64 TAGS=''
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.dragonfly.amd64 TAGS=''
 
     # - name: Package
@@ -62,7 +60,7 @@ jobs:
 
     - name: Hash
       run: |
-        os_list="linux freebsd netbsd openbsd plan9 aix solaris dragonfly"
+        os_list="linux freebsd netbsd openbsd solaris dragonfly"
 
         cd build
         for os in ${os_list}; do
@@ -294,7 +292,7 @@ jobs:
     - name: Create Checksum Files
       run: |
         files="sha256 sha512 md5"
-        os_list="darwin windows freebsd netbsd openbsd plan9 aix solaris dragonfly"
+        os_list="darwin windows freebsd netbsd openbsd solaris dragonfly"
 
         for f in ${files}; do
           printf "# Linux builds\n\n" > "build/${f}.txt"
@@ -756,56 +754,6 @@ jobs:
         asset_path: build/credentialfs.netbsd.arm64
         asset_content_type: application/octet-stream
 
-    - name: Upload credentialfs.plan9.x86
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.plan9.x86
-        asset_path: build/credentialfs.plan9.x86
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.plan9.amd64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.plan9.amd64
-        asset_path: build/credentialfs.plan9.amd64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.plan9.armv5
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.plan9.armv5
-        asset_path: build/credentialfs.plan9.armv5
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.plan9.armv6
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.plan9.armv6
-        asset_path: build/credentialfs.plan9.armv6
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.plan9.armv7
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.plan9.armv7
-        asset_path: build/credentialfs.plan9.armv7
-        asset_content_type: application/octet-stream
-
     - name: Upload credentialfs.dragonfly.amd64
       uses: actions/upload-release-asset@v1
       env:
@@ -824,16 +772,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_name: credentialfs.solaris.amd64
         asset_path: build/credentialfs.solaris.amd64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.aix.ppc64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.aix.ppc64
-        asset_path: build/credentialfs.aix.ppc64
         asset_content_type: application/octet-stream
 
     #

@@ -231,32 +231,7 @@ credentialfs.openbsd.all: \
 	credentialfs.openbsd.armv5 \
 	credentialfs.openbsd.armv6
 
-credentialfs.plan9.amd64:
-	sh scripts/build/build.sh $@
-
-credentialfs.plan9.x86:
-	sh scripts/build/build.sh $@
-
-credentialfs.plan9.armv5:
-	sh scripts/build/build.sh $@
-
-credentialfs.plan9.armv6:
-	sh scripts/build/build.sh $@
-
-credentialfs.plan9.armv7:
-	sh scripts/build/build.sh $@
-
-credentialfs.plan9.all: \
-	credentialfs.plan9.amd64 \
-	credentialfs.plan9.armv7 \
-	credentialfs.plan9.x86 \
-	credentialfs.plan9.armv5 \
-	credentialfs.plan9.armv6
-
 credentialfs.solaris.amd64:
-	sh scripts/build/build.sh $@
-
-credentialfs.aix.ppc64:
 	sh scripts/build/build.sh $@
 
 credentialfs.dragonfly.amd64:

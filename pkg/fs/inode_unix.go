@@ -5,6 +5,7 @@ package fs
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -147,9 +148,17 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	var processName string
 	p, err := ps.FindProcess(int(caller.Pid))
 	if err == nil {
-		processName = p.Executable()
+		processName = fmt.Sprintf("%q (pid=%d)", p.Executable(), caller.Pid)
 	} else {
 		processName = fmt.Sprintf("PID:%d", caller.Pid)
+	}
+
+	var parentProcessName string
+	pp, err := ps.FindProcess(p.PPid())
+	if err == nil {
+		parentProcessName = fmt.Sprintf("%q pid=%d", pp.Executable(), pp.Pid())
+	} else {
+		parentProcessName = fmt.Sprintf("PID:%d", p.PPid())
 	}
 
 	username := fmt.Sprintf("UID:%d", caller.Uid)
@@ -165,18 +174,32 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
+			h := sha256.New()
+			h.Write([]byte(username))
+			h.Write([]byte(processName))
+			h.Write([]byte(parentProcessName))
+			h.Write([]byte(n.hashedTarget))
+
 			authRequestKey := fmt.Sprintf(
-				"dev.arhat.credentialfs.file.read.%s.%s.%s",
-				hex.EncodeToString(hashhelper.Sha256Sum([]byte(username))),
-				hex.EncodeToString(hashhelper.Sha256Sum([]byte(processName))),
-				n.hashedTarget,
+				"dev.arhat.credentialfs.file.read.%s",
+				hex.EncodeToString(h.Sum(nil)),
 			)
 			prompt := fmt.Sprintf(
-				"%s is using %q to read your credential at %s, authorize to proceed",
+				"%s is using %s to read your credential at %s, authorize to proceed",
 				username,
 				processName,
 				n.target,
 			)
+
+			if len(parentProcessName) != 0 {
+				prompt = fmt.Sprintf(
+					"%s is using %s (invoked in %s) to read your credential at %s, authorize to proceed",
+					username,
+					processName,
+					parentProcessName,
+					n.target,
+				)
+			}
 
 			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt)
 			if err != nil {

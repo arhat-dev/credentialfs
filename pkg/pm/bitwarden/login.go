@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
 	"runtime"
 	"strings"
 	"time"
@@ -36,15 +35,12 @@ func (d *Driver) login(input *pm.LoginInput) error {
 		return fmt.Errorf("failed to parse prelogin response: %w", err)
 	}
 
-	var (
-		kdfTypePtr       *bw.KdfType
-		kdfIterationsPtr *int32
-	)
-
-	if pr.JSON200 != nil {
-		kdfTypePtr = pr.JSON200.Kdf
-		kdfIterationsPtr = pr.JSON200.KdfIterations
+	if pr.JSON200 == nil {
+		return fmt.Errorf("failed to get prelogin config %s: %s", pr.Status(), string(pr.Body))
 	}
+
+	kdfTypePtr := pr.JSON200.Kdf
+	kdfIterationsPtr := pr.JSON200.KdfIterations
 
 	masterKey, err := makeMasterKey(input.Password, email, kdfTypePtr, kdfIterationsPtr)
 	if err != nil {
@@ -54,31 +50,27 @@ func (d *Driver) login(input *pm.LoginInput) error {
 	values := &url.Values{}
 	values.Set("grant_type", "password")
 	values.Set("scope", "api offline_access")
-	values.Set("client_id", "test")
+	values.Set("client_id", "cli")
 	values.Set("username", email)
-	values.Set("deviceIdentifier", "test")
+	values.Set("deviceIdentifier", d.deviceID)
 	values.Set("deviceName", "credentialfs")
 	values.Set("deviceType", getDeviceType())
 
 	hashedPassword := hashPassword(input.Password, masterKey)
 	values.Set("password", hashedPassword)
 
-	loginURL, err := url.Parse(d.client.Server)
-	if err != nil {
-		return fmt.Errorf("failed to bitwarden server url: %w", err)
-	}
-	loginURL.Path = path.Join(loginURL.Path, "identity/connect/token")
-
 	req, err := http.NewRequestWithContext(
 		d.ctx,
 		http.MethodPost,
-		loginURL.String(),
+		d.endpointURL+"/identity/connect/token",
 		strings.NewReader(values.Encode()),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create login request: %w", err)
 	}
 
+	_ = d.fixRequest(d.ctx, req)
+	req.Header.Set("Auth-Email", email)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 
 	resp, err = d.client.Client.Do(req)

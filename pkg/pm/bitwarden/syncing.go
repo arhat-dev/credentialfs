@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -31,17 +30,26 @@ func (d *Driver) startSyncing(ctx context.Context) error {
 	default:
 	}
 
-	u, err := url.Parse(d.client.Server)
-	if err != nil {
-		return err
-	}
+	var urlStr string
+	if d.endpointURL == officialServiceEndpointURL {
+		urlStr = fmt.Sprintf(
+			"wss://%s/hub?access_token=%s",
+			officialNotificationEndpointHost,
+			d.accessToken,
+		)
+	} else {
+		u, err := url.Parse(d.endpointURL)
+		if err != nil {
+			return err
+		}
 
-	urlStr := fmt.Sprintf(
-		"wss://%s/%s?access_token=%s",
-		u.Host,
-		strings.TrimPrefix(path.Join(u.Path, "notifications/hub"), "/"),
-		d.accessToken,
-	)
+		urlStr = fmt.Sprintf(
+			"wss://%s/%s?access_token=%s",
+			u.Host,
+			path.Join(d.endpointPathPrefix, "notifications/hub"),
+			d.accessToken,
+		)
+	}
 
 	conn, _, err := websocket.Dial(ctx, urlStr, &websocket.DialOptions{})
 	if err != nil {

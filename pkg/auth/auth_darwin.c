@@ -67,7 +67,7 @@ OSStatus request_auth(
         // ref_ptr is created for this function call,
         // and since the authorization failed,
         // it will never be used
-        free((void *)ref_ptr);
+        free(ref_ptr);
     }
 
     return code;

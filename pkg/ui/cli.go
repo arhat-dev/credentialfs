@@ -92,6 +92,8 @@ func requestCommandLineInput(prompt string, hideInput bool) (string, error) {
 		if err2 != nil {
 			return string(pwd), err2
 		}
+
+		result = string(pwd)
 	} else {
 		_, err = fmt.Fscanf(os.Stdin, "%s\n", &result)
 		if err != nil {

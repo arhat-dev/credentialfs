@@ -45,6 +45,27 @@ func (d *Driver) fixRequest(ctx context.Context, req *http.Request) error {
 
 func (d *Driver) prependPath(p string) bw.RequestEditorFn {
 	return func(ctx context.Context, req *http.Request) error {
+		// if d.endpointURL == officialServiceEndpointURL {
+		// 	// official bitwarden service
+		// 	host := ""
+
+		// 	switch {
+		// 	case strings.HasPrefix(p, "api"):
+		// 		host = officialAPIEndpointHost
+		// 	case strings.HasPrefix(p, "identity"):
+		// 		host = officialIdentityEndpointHost
+		// 	case strings.HasPrefix(p, "events"):
+		// 		host = officialEventsEndpointHost
+		// 	case strings.HasPrefix(p, "notification"):
+		// 		host = officialNotificationEndpointHost
+		// 	}
+
+		// 	req.URL.Host = host
+		// 	req.Header.Set("Host", host)
+
+		// 	return nil
+		// }
+
 		req.URL.Path = strings.TrimPrefix(req.URL.Path, d.endpointPathPrefix)
 		req.URL.Path = path.Join(d.endpointPathPrefix, p, req.URL.Path)
 		if !strings.HasPrefix(req.URL.Path, "/") {

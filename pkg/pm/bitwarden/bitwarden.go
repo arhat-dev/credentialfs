@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	bw "arhat.dev/bitwardenapi/bwinternal"
+	"github.com/denisbrodbeck/machineid"
 
 	"arhat.dev/credentialfs/pkg/auth"
 	"arhat.dev/credentialfs/pkg/pm"
@@ -17,6 +18,13 @@ import (
 // nolint:revive
 const (
 	Name = "bitwarden"
+
+	officialServiceEndpointURL = "https://vault.bitwarden.com"
+
+	// officialAPIEndpointHost          = "api.bitwarden.com"
+	officialNotificationEndpointHost = "notifications.bitwarden.com"
+	// officialIdentityEndpointHost     = "identity.bitwarden.com"
+	// officialEventsEndpointHost       = "events.bitwarden.com"
 )
 
 func init() {
@@ -28,15 +36,35 @@ func init() {
 				return nil, fmt.Errorf("unexpected non bitwarden config: %T", config)
 			}
 
-			u, err := url.Parse(c.EndpointURL)
-			if err != nil {
-				return nil, fmt.Errorf("invalid endpoint url: %w", err)
+			pathPrefix := ""
+			endpointURL := strings.TrimRight(c.EndpointURL, "/")
+			if len(endpointURL) != 0 {
+				u, err := url.Parse(endpointURL)
+				if err != nil {
+					return nil, fmt.Errorf("invalid endpoint url: %w", err)
+				}
+
+				pathPrefix = u.Path
+			} else {
+				endpointURL = officialServiceEndpointURL
+			}
+
+			deviceID := c.DeviceID
+			if len(deviceID) == 0 {
+				var err error
+				deviceID, err = machineid.ID()
+				if err != nil {
+					return nil, fmt.Errorf("couldn't determine a stable device id, please provide your own")
+				}
 			}
 
 			driver := &Driver{
-				ctx:                ctx,
-				client:             nil,
-				endpointPathPrefix: u.Path,
+				ctx:    ctx,
+				client: nil,
+
+				deviceID:           deviceID,
+				endpointURL:        endpointURL,
+				endpointPathPrefix: pathPrefix,
 
 				configName:    configName,
 				saveLogin:     c.SaveLogin,
@@ -49,8 +77,9 @@ func init() {
 
 				mu: &sync.RWMutex{},
 			}
+
 			client, err := bw.NewClient(
-				c.EndpointURL,
+				endpointURL,
 				bw.WithRequestEditorFn(driver.fixRequest),
 			)
 			if err != nil {
@@ -70,6 +99,7 @@ func init() {
 type Config struct {
 	EndpointURL     string `json:"endpointURL" yaml:"endpointURL"`
 	SaveLogin       bool   `json:"saveLogin" yaml:"saveLogin"`
+	DeviceID        string `json:"deviceID" yaml:"deviceID"`
 	TwoFactorMethod string `json:"twoFactorMethod" yaml:"twoFactorMethod"`
 }
 
@@ -78,7 +108,10 @@ var _ pm.Interface = (*Driver)(nil)
 type Driver struct {
 	ctx context.Context
 
-	client             *bw.Client
+	client *bw.Client
+
+	deviceID           string
+	endpointURL        string
 	endpointPathPrefix string
 
 	// config options
@@ -120,6 +153,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 
 		err error
 
+		savedBefore  = false
 		loginUpdated = true
 	)
 
@@ -140,18 +174,27 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 		if err != nil {
 			switch {
 			case errors.Is(err, auth.ErrNotFound):
+				input, err = requestUserLogin(d.twoFactorKind, input)
+				if err != nil {
+					return err
+				}
+
+				loginUpdated = true
 			case errors.Is(err, auth.ErrOldInvalid):
 				_ = auth.DeleteLogin(Name, d.configName)
+
+				input, err = requestUserLogin(d.twoFactorKind, input)
+				if err != nil {
+					return err
+				}
+
+				loginUpdated = true
 			default:
 				// unable to lookup keychain
 				return err
 			}
-
-			loginUpdated = true
-			input, err = requestUserLogin(d.twoFactorKind, input)
-			if err != nil {
-				return err
-			}
+		} else {
+			savedBefore = true
 		}
 
 		if d.twoFactorKind != pm.TwoFactorKindNone {
@@ -165,17 +208,42 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 	}
 
 	err = d.login(input)
+	if err == nil {
+		if d.saveLogin && loginUpdated &&
+			(len(input.Username) != 0 || len(input.Password) != 0) {
+
+			err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// first login try failed
+	if !savedBefore {
+		// user entered this login
+		return err
+	}
+
+	// we were using saved login, request new login from user input
+	_ = auth.DeleteLogin(Name, d.configName)
+	input, err = requestUserLogin(d.twoFactorKind, input)
 	if err != nil {
 		return err
 	}
 
-	if d.saveLogin && loginUpdated &&
-		(len(input.Username) != 0 || len(input.Password) != 0) {
+	err = d.login(input)
+	if err != nil {
+		return err
+	}
 
-		err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
-		if err != nil {
-			return err
-		}
+	if !d.saveLogin {
+		return nil
+	}
+
+	err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
+	if err != nil {
+		return err
 	}
 
 	return nil

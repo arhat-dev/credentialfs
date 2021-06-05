@@ -1,11 +1,41 @@
 package bitwarden
 
 import (
-	"fmt"
 	"sync"
 )
 
-// TODO: generalize cipher index and move to pm/utils.go
+func newCacheSet() *cacheSet {
+	return &cacheSet{
+		m: make(map[cacheKey]*cacheValue),
+	}
+}
+
+type cacheSet struct {
+	m map[cacheKey]*cacheValue
+}
+
+func (s *cacheSet) Add(
+	// key combination
+	itemName, itemKey string,
+	// values
+	cipherID string,
+	value []byte, url string,
+	key *bitwardenKey,
+) {
+	s.m[cacheKey{
+		ItemName: itemName,
+		ItemKey:  itemKey,
+	}] = &cacheValue{
+		CipherID: cipherID,
+		Value:    value,
+		URL:      url,
+		Key:      key,
+	}
+}
+
+func (s *cacheSet) Get(itemName, itemKey string) *cacheValue {
+	return s.m[cacheKey{ItemName: itemName, ItemKey: itemKey}]
+}
 
 type cacheKey struct {
 	// plaintext
@@ -18,7 +48,10 @@ type cacheKey struct {
 }
 
 type cacheValue struct {
-	// encrypted value
+	// CipherID this value belongs to
+	CipherID string
+
+	// plaintext value
 	Value []byte
 
 	// plaintext url for attachment
@@ -42,21 +75,17 @@ type cipherCache struct {
 }
 
 func (d *cipherCache) Add(
-	// key combination
-	itemName, itemKey string,
-	// values
-	value []byte, url string, key *bitwardenKey,
+	s *cacheSet,
 ) {
+	if s == nil {
+		return
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	d.m[cacheKey{
-		ItemName: itemName,
-		ItemKey:  itemKey,
-	}] = &cacheValue{
-		Value: value,
-		URL:   url,
-		Key:   key,
+	for k := range s.m {
+		d.m[k] = s.m[k]
 	}
 }
 
@@ -77,26 +106,23 @@ func (d *cipherCache) Get(
 	return val
 }
 
-func (d *cipherCache) Clear() {
+func (d *cipherCache) Clear(filter func(k cacheKey, v *cacheValue) bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	keys := make([]*cacheKey, len(d.m))
-	i := 0
-	for k := range d.m {
-		keys[i] = &cacheKey{
-			ItemName: k.ItemName,
-			ItemKey:  k.ItemKey,
+	var keys []*cacheKey
+	for k, v := range d.m {
+		if !filter(k, v) {
+			continue
 		}
 
-		i++
+		keys = append(keys, &cacheKey{
+			ItemName: k.ItemName,
+			ItemKey:  k.ItemKey,
+		})
 	}
 
 	for _, k := range keys {
 		delete(d.m, *k)
-	}
-
-	if len(d.m) != 0 {
-		panic(fmt.Errorf("cache not cleared, %d remains", len(d.m)))
 	}
 }

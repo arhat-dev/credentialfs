@@ -1,7 +1,6 @@
 package bitwarden
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -20,19 +19,6 @@ import (
 
 	"arhat.dev/credentialfs/pkg/pm"
 )
-
-func (d *Driver) prependPath(p string) bw.RequestEditorFn {
-	return func(ctx context.Context, req *http.Request) error {
-		req.URL.Path = strings.TrimPrefix(req.URL.Path, d.endpointPathPrefix)
-		req.URL.Path = path.Join(d.endpointPathPrefix, p, req.URL.Path)
-		if !strings.HasPrefix(req.URL.Path, "/") {
-			req.URL.Path = "/" + req.URL.Path
-		}
-
-		req.Header.Set("Path", req.URL.RequestURI())
-		return nil
-	}
-}
 
 func (d *Driver) login(input *pm.LoginInput) error {
 	email := strings.ToLower(strings.TrimSpace(input.Username))

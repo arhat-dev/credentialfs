@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -40,12 +38,14 @@ func init() {
 				client:             nil,
 				endpointPathPrefix: u.Path,
 
-				configName: configName,
-				saveLogin:  c.SaveLogin,
-
-				cache: newCipherCache(),
-
+				configName:    configName,
+				saveLogin:     c.SaveLogin,
 				twoFactorKind: pm.TwoFactorKind(strings.ToLower(c.TwoFactorMethod)),
+
+				cache:         newCipherCache(),
+				subscriptions: newSubManager(),
+
+				updateCh: make(chan pm.CredentialUpdate, 1),
 
 				mu: &sync.RWMutex{},
 			}
@@ -81,8 +81,10 @@ type Driver struct {
 	client             *bw.Client
 	endpointPathPrefix string
 
-	configName string
-	saveLogin  bool
+	// config options
+	configName    string
+	saveLogin     bool
+	twoFactorKind pm.TwoFactorKind
 
 	// jwt token
 	accessToken string
@@ -96,9 +98,10 @@ type Driver struct {
 	encKey         *bitwardenKey
 	privateKey     *bitwardenKey
 
-	cache *cipherCache
+	cache         *cipherCache
+	subscriptions *subManager
 
-	twoFactorKind pm.TwoFactorKind
+	updateCh chan pm.CredentialUpdate
 
 	mu *sync.RWMutex
 }
@@ -109,13 +112,6 @@ func (d *Driver) DriverName() string {
 
 func (d *Driver) ConfigName() string {
 	return d.configName
-}
-
-func (d *Driver) update(f func()) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	f()
 }
 
 func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
@@ -185,7 +181,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 	return nil
 }
 
-func (d *Driver) Sync(stop <-chan struct{}) (<-chan pm.CredentialUpdate, error) {
+func (d *Driver) Sync(ctx context.Context) (<-chan pm.CredentialUpdate, error) {
 	d.mu.RLock()
 	encKey := d.encKey
 	d.mu.RUnlock()
@@ -195,69 +191,50 @@ func (d *Driver) Sync(stop <-chan struct{}) (<-chan pm.CredentialUpdate, error) 
 		return nil, err
 	}
 
-	// TODO: implement continuous sync
-
-	return nil, nil
-}
-
-func (d *Driver) Subscribe(key string) ([]byte, error) {
-	parts := strings.SplitN(key, "/", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid key %q", key)
+	err = d.startSyncing(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to keep syncing with server: %w", err)
 	}
 
-	cipher := d.cache.Get(parts[0], parts[1])
+	return d.updateCh, nil
+}
+
+func (d *Driver) Subscribe(subID string) ([]byte, error) {
+	k := getCacheKey(subID)
+	if k == nil {
+		return nil, fmt.Errorf("invalid key %q", subID)
+	}
+
+	cipher := d.cache.Get(k.ItemName, k.ItemKey)
 	if cipher == nil {
-		return nil, fmt.Errorf("credential %q not found", key)
+		return nil, fmt.Errorf("credential %q not found", subID)
 	}
 
 	if len(cipher.URL) == 0 {
 		// not an attachment, return value directly
-		// TODO: add this key to subscription
+		d.subscriptions.Add(subID, cipher.CipherID)
+
 		return cipher.Value, nil
 	}
 
-	// is an attachment url, key must present
+	// is an attachment url, download it
 
-	if cipher.Key == nil {
-		return nil, fmt.Errorf("invalid cipher cache: key not found")
-	}
-
-	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, cipher.URL, nil)
+	data, err := d.downloadAttachment(cipher)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to download attachment %q: %w", subID, err)
 	}
 
-	err = d.fixRequest(d.ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fix attachment request: %w", err)
-	}
-
-	resp, err := d.client.Client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request attachment %q: %w", key, err)
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read attachment data: %w", err)
-	}
-
-	data, err = decryptData(data, cipher.Key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
-	}
-
-	// TODO: add this key to subscription
+	d.subscriptions.Add(subID, cipher.CipherID)
 
 	return data, nil
 }
 
 // Flush previously built in memory cache
 func (d *Driver) Flush() {
-	d.cache.Clear()
+	d.cache.Clear(func(k cacheKey, v *cacheValue) bool {
+		// do not clear cache if subscribed
+		return !d.subscriptions.Check(v.CipherID, k.ItemName+"/"+k.ItemKey)
+	})
 }
 
 func (d *Driver) Update(key string, data []byte) error {

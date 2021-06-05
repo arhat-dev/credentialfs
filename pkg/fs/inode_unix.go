@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"os/user"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -150,16 +152,30 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 		processName = fmt.Sprintf("PID:%d", caller.Pid)
 	}
 
+	username := fmt.Sprintf("UID:%d", caller.Uid)
+	u, err := user.LookupId(strconv.FormatInt(int64(caller.Uid), 10))
+	if err != nil {
+		return nil, 0, syscall.EACCES
+	}
+
+	if len(u.Name) != 0 {
+		username = u.Name
+	}
+
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
 			authRequestKey := fmt.Sprintf(
-				"dev.arhat.credentialfs.file.read.%s.%s",
-				n.hashedTarget, hex.EncodeToString(hashhelper.Sha256Sum([]byte(processName))),
+				"dev.arhat.credentialfs.file.read.%s.%s.%s",
+				hex.EncodeToString(hashhelper.Sha256Sum([]byte(username))),
+				hex.EncodeToString(hashhelper.Sha256Sum([]byte(processName))),
+				n.hashedTarget,
 			)
 			prompt := fmt.Sprintf(
-				"%q is trying to read your credential at %s, authorize to proceed",
-				processName, n.target,
+				"%s is using %q to read your credential at %s, authorize to proceed",
+				username,
+				processName,
+				n.target,
 			)
 
 			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt)

@@ -134,13 +134,19 @@ func (fs *filesystem) Stop() error {
 	defer fs.mu.Unlock()
 
 	var err error
-	for _, f := range fs.symlinkFiles {
-		err = multierr.Append(err, os.Remove(f))
-	}
 
 	err = multierr.Append(err, fs.authManager.Stop())
+	err = multierr.Append(err, fs.srv.Unmount())
 
-	return multierr.Append(err, fs.srv.Unmount())
+	for _, f := range fs.symlinkFiles {
+		err2 := os.Remove(f)
+		if err2 != nil && !os.IsNotExist(err2) {
+			// usually system will remove these symlinks on fuse unmounted
+			err = multierr.Append(err, err2)
+		}
+	}
+
+	return err
 }
 
 func (fs *filesystem) BindData(
@@ -180,7 +186,7 @@ func (fs *filesystem) BindData(
 
 		err = os.Symlink(realPath, ln.target)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to recreate symlink: %w", err)
 		}
 	}
 

@@ -54,7 +54,7 @@ func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 	}
 
 	for _, c := range *sr.JSON200.Ciphers {
-		if c.Attachments == nil || c.Name == nil {
+		if c.Name == nil || c.Id == nil {
 			continue
 		}
 
@@ -68,87 +68,100 @@ func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 			}
 		}
 
-		itemNameData, err := decodeProtectedData(*c.Name)
+		cipherNameData, err := decodeProtectedData(*c.Name)
 		if err != nil {
 			return fmt.Errorf("failed to decode org key: %w", err)
 		}
 
-		itemName, err := itemNameData.decrypt(encKey)
+		cipherNameBytes, err := cipherNameData.decrypt(encKey)
 		if err != nil {
 			return err
 		}
 
-		err = d.parseAndCacheCipherLogin(string(itemName), c.Login, encKey)
+		cipherName := string(cipherNameBytes)
+		cipherID := *c.Id
+
+		loginSet, err := parseCipherLogin(cipherName, cipherID, c.Login, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher login: %w", err)
 		}
 
-		err = d.parseAndCacheCipherFields(string(itemName), c.Fields, encKey)
+		fieldSet, err := parseCipherFields(cipherName, cipherID, c.Fields, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher fields: %w", err)
 		}
 
-		err = d.parseAndCacheCipherAttachments(string(itemName), c.Attachments, encKey)
+		attachmentSet, err := parseCipherAttachments(cipherName, cipherID, c.Attachments, encKey)
 		if err != nil {
 			return fmt.Errorf("failed to parse cipher attachments: %w", err)
 		}
+
+		d.cache.Add(loginSet)
+		d.cache.Add(fieldSet)
+		d.cache.Add(attachmentSet)
 	}
 
 	return nil
 }
 
-func (d *Driver) parseAndCacheCipherLogin(
-	itemName string,
+func parseCipherLogin(
+	cipherName, cipherID string,
 	login *bw.CipherLoginModel,
 	key *bitwardenKey,
-) error {
+) (ret *cacheSet, _ error) {
 	switch {
 	case login == nil:
-		return nil
+		return
 	case login.Username == nil && login.Password == nil:
-		return nil
+		return
 	}
 
+	ret = newCacheSet()
 	if u := login.Username; u != nil {
 		usernameData, err := decodeProtectedData(*u)
 		if err != nil {
-			return fmt.Errorf("failed to decode field name: %w", err)
+			err = fmt.Errorf("failed to decode field name: %w", err)
+			return
 		}
 
 		username, err := usernameData.decrypt(key)
 		if err != nil {
-			return fmt.Errorf("failed to decrypt field name: %w", err)
+			err = fmt.Errorf("failed to decrypt field name: %w", err)
+			return
 		}
 
-		d.cache.Add(itemName, pm.IndexKeyUsername, username, "", nil)
+		ret.Add(cipherName, pm.IndexKeyUsername, cipherID, username, "", key)
 	}
 
 	if p := login.Password; p != nil {
 		passwordData, err := decodeProtectedData(*p)
 		if err != nil {
-			return fmt.Errorf("failed to decode field name: %w", err)
+			err = fmt.Errorf("failed to decode field name: %w", err)
+			return
 		}
 
 		password, err := passwordData.decrypt(key)
 		if err != nil {
-			return fmt.Errorf("failed to decrypt field name: %w", err)
+			err = fmt.Errorf("failed to decrypt field name: %w", err)
+			return
 		}
 
-		d.cache.Add(itemName, pm.IndexKeyPassword, password, "", nil)
+		ret.Add(cipherName, pm.IndexKeyPassword, cipherID, password, "", key)
 	}
 
-	return nil
+	return
 }
 
-func (d *Driver) parseAndCacheCipherFields(
-	itemName string,
+func parseCipherFields(
+	cipherName, cipherID string,
 	fields *[]bw.CipherFieldModel,
 	key *bitwardenKey,
-) error {
+) (ret *cacheSet, _ error) {
 	if fields == nil {
-		return nil
+		return
 	}
 
+	ret = newCacheSet()
 	for _, f := range *fields {
 		if f.Name == nil {
 			continue
@@ -156,42 +169,47 @@ func (d *Driver) parseAndCacheCipherFields(
 
 		fieldNameData, err := decodeProtectedData(*f.Name)
 		if err != nil {
-			return fmt.Errorf("failed to decode field name: %w", err)
+			err = fmt.Errorf("failed to decode field name: %w", err)
+			return
 		}
 
 		fieldName, err := fieldNameData.decrypt(key)
 		if err != nil {
-			return fmt.Errorf("failed to decrypt field name: %w", err)
+			err = fmt.Errorf("failed to decrypt field name: %w", err)
+			return
 		}
 
 		var fieldValue []byte
 		if f.Value != nil {
 			fieldValueData, err := decodeProtectedData(*f.Value)
 			if err != nil {
-				return fmt.Errorf("failed to decode field value: %w", err)
+				err = fmt.Errorf("failed to decode field value: %w", err)
+				return
 			}
 
 			fieldValue, err = fieldValueData.decrypt(key)
 			if err != nil {
-				return fmt.Errorf("failed to decrypt field value: %w", err)
+				err = fmt.Errorf("failed to decrypt field value: %w", err)
+				return
 			}
 		}
 
-		d.cache.Add(itemName, string(fieldName), fieldValue, "", nil)
+		ret.Add(cipherName, string(fieldName), cipherID, fieldValue, "", key)
 	}
 
-	return nil
+	return
 }
 
-func (d *Driver) parseAndCacheCipherAttachments(
-	itemName string,
+func parseCipherAttachments(
+	cipherName, cipherID string,
 	attachments *[]bw.AttachmentResponseModel,
 	key *bitwardenKey,
-) error {
+) (ret *cacheSet, _ error) {
 	if attachments == nil {
-		return nil
+		return
 	}
 
+	ret = newCacheSet()
 	for _, a := range *attachments {
 		if a.FileName == nil || a.Url == nil {
 			continue
@@ -199,29 +217,33 @@ func (d *Driver) parseAndCacheCipherAttachments(
 
 		filenameData, err := decodeProtectedData(*a.FileName)
 		if err != nil {
-			return fmt.Errorf("failed to decode attachment filename: %w", err)
+			err = fmt.Errorf("failed to decode attachment filename: %w", err)
+			return
 		}
 
 		filename, err := filenameData.decrypt(key)
 		if err != nil {
-			return fmt.Errorf("failed to decrypt attachment filename: %w", err)
+			err = fmt.Errorf("failed to decrypt attachment filename: %w", err)
+			return
 		}
 
 		attachmentEncKey := key
 		if a.Key != nil {
 			keyData, err := decodeProtectedData(*a.Key)
 			if err != nil {
-				return fmt.Errorf("failed to decode attachment key: %w", err)
+				err = fmt.Errorf("failed to decode attachment key: %w", err)
+				return
 			}
 
 			attachmentEncKey, err = keyData.decryptAsKey(key)
 			if err != nil {
-				return fmt.Errorf("failed to decrypt attachment key: %w", err)
+				err = fmt.Errorf("failed to decrypt attachment key: %w", err)
+				return
 			}
 		}
 
-		d.cache.Add(itemName, string(filename), nil, *a.Url, attachmentEncKey)
+		ret.Add(cipherName, string(filename), cipherID, nil, *a.Url, attachmentEncKey)
 	}
 
-	return nil
+	return
 }

@@ -82,7 +82,7 @@ func (m *Manager) Start() (err error) {
 			return err
 		}
 
-		updateCh, err := b.pm.Sync(m.ctx.Done())
+		updateCh, err := b.pm.Sync(m.ctx)
 		if err != nil {
 			return fmt.Errorf("failed to sync pm %q for initialization: %w", b.pm.ConfigName(), err)
 		}

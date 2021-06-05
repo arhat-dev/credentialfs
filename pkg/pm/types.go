@@ -1,5 +1,7 @@
 package pm
 
+import "context"
+
 type TwoFactorKind string
 
 // nolint:revive
@@ -44,7 +46,7 @@ type Interface interface {
 	// for continuous credential syncing
 	//
 	// The value of returned channel is always the same
-	Sync(stop <-chan struct{}) (<-chan CredentialUpdate, error)
+	Sync(ctx context.Context) (<-chan CredentialUpdate, error)
 
 	// Subscribe looks up in memory cahe of all credentials with the key
 	// returns the cached value of the key if found

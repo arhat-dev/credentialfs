@@ -90,7 +90,13 @@ func (rn *rootNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 	}), 0
 }
 
-func newLeafNode(to string, data []byte, fs *filesystem, permitDuration time.Duration) *leafNode {
+func newLeafNode(
+	to string,
+	data []byte,
+	fs *filesystem,
+	penaltyDuration *time.Duration,
+	permitDuration *time.Duration,
+) *leafNode {
 	return &leafNode{
 		fs: fs,
 
@@ -99,7 +105,8 @@ func newLeafNode(to string, data []byte, fs *filesystem, permitDuration time.Dur
 		target:       to,
 		hashedTarget: hex.EncodeToString(hashhelper.Sha256Sum(data)),
 
-		permitDuration: permitDuration,
+		penaltyDuration: penaltyDuration,
+		permitDuration:  permitDuration,
 
 		usedFds: &sync.Map{},
 	}
@@ -124,7 +131,8 @@ type leafNode struct {
 	target       string
 	hashedTarget string
 
-	permitDuration time.Duration
+	penaltyDuration *time.Duration
+	permitDuration  *time.Duration
 
 	usedFds *sync.Map
 }
@@ -213,7 +221,7 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 				)
 			}
 
-			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt)
+			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt, n.penaltyDuration)
 			if err != nil {
 				return nil, 0, syscall.EACCES
 			}

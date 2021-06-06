@@ -84,7 +84,13 @@ func NewManager(
 	fsCtx := context.WithValue(ctx, constant.ContextKeyDebug, config.Debug)
 
 	var err error
-	mgr.fs, err = fs.CreateFilesystem(fsCtx, config.Mountpoint, authHandler)
+	mgr.fs, err = fs.CreateFilesystem(
+		fsCtx,
+		config.Mountpoint,
+		authHandler,
+		config.DefaultPenaltyDuration,
+		config.DefaultPermitDuration,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create fuse filesystem: %w", err)
 	}
@@ -129,7 +135,7 @@ func (m *Manager) Start() (err error) {
 				return fmt.Errorf("failed to get %q from %q: %w", mount.From, b.pm.ConfigName(), err)
 			}
 
-			err = m.fs.BindData(m.ctx, mount.To, data, mount.PermitDuration)
+			err = m.fs.BindData(m.ctx, mount.To, data, mount.PenaltyDuration, mount.PermitDuration)
 			if err != nil {
 				return fmt.Errorf("failed to bind data to filesystem: %w", err)
 			}
@@ -183,7 +189,7 @@ func (m *Manager) handlePasswordManagerUpdates(
 				continue
 			}
 
-			err := m.fs.BindData(m.ctx, spec.To, update.NewValue, spec.PermitDuration)
+			err := m.fs.BindData(m.ctx, spec.To, update.NewValue, spec.PenaltyDuration, spec.PermitDuration)
 			if err != nil {
 				// TODO: log error
 				_ = err

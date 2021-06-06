@@ -21,6 +21,7 @@ type Filesystem interface {
 		ctx context.Context,
 		at string,
 		data []byte,
-		permitDuration time.Duration,
+		penaltyDuration *time.Duration,
+		permitDuration *time.Duration,
 	) error
 }

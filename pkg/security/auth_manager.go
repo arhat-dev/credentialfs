@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 func NewAuthorizationManager(
 	runningCtx context.Context,
 	handler AuthorizationHandler,
+	defaultPenaltyDuration time.Duration,
+	defaultPermitDuration time.Duration,
 ) *AuthorizationManager {
 	ctx, cancel := context.WithCancel(runningCtx)
 
@@ -23,7 +26,11 @@ func NewAuthorizationManager(
 
 		workerExited: make(chan struct{}),
 
-		tq: queue.NewTimeoutQueue(),
+		permitTQ:  queue.NewTimeoutQueue(),
+		penaltyTQ: queue.NewTimeoutQueue(),
+
+		defaultPermitDuration:  defaultPermitDuration,
+		defaultPenaltyDuration: defaultPenaltyDuration,
 
 		pendingDestroyTasks: &sync.Map{},
 
@@ -39,7 +46,11 @@ type AuthorizationManager struct {
 
 	workerExited chan struct{}
 
-	tq *queue.TimeoutQueue
+	penaltyTQ *queue.TimeoutQueue
+	permitTQ  *queue.TimeoutQueue
+
+	defaultPermitDuration  time.Duration
+	defaultPenaltyDuration time.Duration
 
 	pendingDestroyTasks *sync.Map
 
@@ -61,10 +72,19 @@ type (
 func (m *AuthorizationManager) Start() {
 	stopSig := m.ctx.Done()
 
-	m.tq.Start(stopSig)
-	ch := m.tq.TakeCh()
+	m.penaltyTQ.Start(stopSig)
+	go func() {
+		ch := m.penaltyTQ.TakeCh()
+		for range ch {
+			// we do nothing here
+		}
+	}()
+
+	m.permitTQ.Start(stopSig)
 	go func() {
 		defer close(m.workerExited)
+
+		ch := m.permitTQ.TakeCh()
 
 		for {
 			select {
@@ -77,11 +97,12 @@ func (m *AuthorizationManager) Start() {
 					// TODO: log error
 
 					// retry in 1s
-					_ = m.tq.OfferWithDelay(td.Key, td.Data, time.Second)
+					_ = m.permitTQ.OfferWithDelay(td.Key, td.Data, time.Second)
 				}
 			}
 		}
 	}()
+
 }
 
 func (m *AuthorizationManager) Stop() (err error) {
@@ -114,7 +135,7 @@ func (m *AuthorizationManager) Stop() (err error) {
 		)
 	}
 
-	ch := m.tq.TakeCh()
+	ch := m.permitTQ.TakeCh()
 
 	timer := time.NewTimer(0)
 	if !timer.Stop() {
@@ -150,7 +171,7 @@ func (m *AuthorizationManager) Stop() (err error) {
 
 	// we have drained the ch, now we just need to handle data not timed out
 
-	for _, td := range m.tq.Remains() {
+	for _, td := range m.permitTQ.Remains() {
 		destroyAuthWithRetry(&td)
 	}
 
@@ -160,23 +181,38 @@ func (m *AuthorizationManager) Stop() (err error) {
 // RequestAuth checks if the authorization is still valid before actually request
 // user authorization
 // the lock is required to make auth request sequential
-func (m *AuthorizationManager) RequestAuth(authReqKey, prompt string) (AuthorizationData, error) {
-	m.mu.RLock()
+func (m *AuthorizationManager) RequestAuth(
+	authReqKey, prompt string, penaltyDuration *time.Duration,
+) (AuthorizationData, error) {
+	target := timeoutDataKey{
+		authReqKey: authReqKey,
+	}
+
+	_, ok := m.penaltyTQ.Find(target)
+	if ok {
+		return nil, fmt.Errorf("penalty duration not ended")
+	}
 
 	// requested this request
-	v, ok := m.tq.Find(timeoutDataKey{
-		authReqKey: authReqKey,
-	})
+	v, ok := m.permitTQ.Find(target)
 	if ok {
-		m.mu.RUnlock()
 		return v.(*timeoutDataValue).authData, nil
 	}
-	m.mu.RUnlock()
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	result, err := m.handler.Request(authReqKey, prompt)
+	m.mu.Unlock()
 
-	return m.handler.Request(authReqKey, prompt)
+	if err != nil {
+		dur := m.defaultPenaltyDuration
+		if penaltyDuration != nil {
+			dur = *penaltyDuration
+		}
+
+		_ = m.penaltyTQ.OfferWithDelay(target, struct{}{}, dur)
+	}
+
+	return result, err
 }
 
 // ScheduleAuthDestroy after a successful auth, it makes sure there will be only one
@@ -186,16 +222,21 @@ func (m *AuthorizationManager) RequestAuth(authReqKey, prompt string) (Authoriza
 func (m *AuthorizationManager) ScheduleAuthDestroy(
 	authReqKey string,
 	authData AuthorizationData,
-	after time.Duration,
+	permitDuration *time.Duration,
 ) error {
+	dur := m.defaultPermitDuration
+	if permitDuration != nil {
+		dur = *permitDuration
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if after == 0 {
+	if dur == 0 {
 		return m.handler.Destroy(authData)
 	}
 
-	v, ok := m.tq.Find(timeoutDataKey{
+	v, ok := m.permitTQ.Find(timeoutDataKey{
 		authReqKey: authReqKey,
 	})
 	if ok {
@@ -207,10 +248,10 @@ func (m *AuthorizationManager) ScheduleAuthDestroy(
 		return nil
 	}
 
-	return m.tq.OfferWithDelay(timeoutDataKey{
+	return m.permitTQ.OfferWithDelay(timeoutDataKey{
 		authReqKey: authReqKey,
 	}, &timeoutDataValue{
 		authData: authData,
-		timeout:  after,
-	}, after)
+		timeout:  dur,
+	}, dur)
 }

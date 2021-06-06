@@ -26,6 +26,8 @@ func CreateFilesystem(
 	ctx context.Context,
 	mountPoint string,
 	authHandler security.AuthorizationHandler,
+	defaultPenaltyDuration time.Duration,
+	defaultPermitDuration time.Duration,
 ) (_ Filesystem, err error) {
 	isTempMount := false
 
@@ -78,7 +80,16 @@ func CreateFilesystem(
 		return nil, fmt.Errorf("failed to create fuse server: %w", err)
 	}
 
-	fs := newFilesystem(ctx, mountPoint, authHandler, root, srv, isTempMount)
+	fs := newFilesystem(
+		ctx,
+		mountPoint,
+		authHandler,
+		defaultPenaltyDuration,
+		defaultPermitDuration,
+		root,
+		srv,
+		isTempMount,
+	)
 
 	return fs, nil
 }
@@ -87,6 +98,8 @@ func newFilesystem(
 	parentCtx context.Context,
 	mountpoint string,
 	authHandler security.AuthorizationHandler,
+	defaultPenaltyDuration time.Duration,
+	defaultPermitDuration time.Duration,
 	root *rootNode,
 	srv *fuse.Server,
 	isTempMount bool,
@@ -105,7 +118,11 @@ func newFilesystem(
 
 		symlinkFiles: nil,
 
-		authManager: security.NewAuthorizationManager(ctx, authHandler),
+		authManager: security.NewAuthorizationManager(
+			ctx, authHandler,
+			defaultPenaltyDuration,
+			defaultPermitDuration,
+		),
 
 		mu: &sync.Mutex{},
 	}
@@ -184,11 +201,12 @@ func (fs *filesystem) BindData(
 	ctx context.Context,
 	at string,
 	data []byte,
-	permitDuration time.Duration,
+	penaltyDuration *time.Duration,
+	permitDuration *time.Duration,
 ) (err error) {
 	fs.mu.Lock()
 
-	ln := newLeafNode(at, data, fs, permitDuration)
+	ln := newLeafNode(at, data, fs, penaltyDuration, permitDuration)
 	fs.root.addLeafNode(ln)
 
 	fs.mu.Unlock()

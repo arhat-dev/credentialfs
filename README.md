@@ -8,7 +8,7 @@
 
 Userspace filesystem daemon for credentials stored in password managers
 
-<p align="center"><img src="./docs/assets/auth-macos.png" alt="macos-auth" width="60%"/></p>
+<p align="center"><img src="./docs/assets/auth-macos.png" alt="macos-auth" width="80%"/></p>
 
 ## Why this project?
 
@@ -63,6 +63,14 @@ app:
   log:
   - level: verbose
     file: stderr
+
+  # use system authorization service
+  authService:
+    name: system
+
+  # use system keychain service
+  keychainService:
+    name: system
 
 fs:
   # global mountpoint, all your credentials will be mounted to this

@@ -17,9 +17,16 @@ import (
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"go.uber.org/multierr"
+
+	"arhat.dev/credentialfs/pkg/constant"
+	"arhat.dev/credentialfs/pkg/security"
 )
 
-func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem, err error) {
+func CreateFilesystem(
+	ctx context.Context,
+	mountPoint string,
+	authHandler security.AuthorizationHandler,
+) (_ Filesystem, err error) {
 	isTempMount := false
 
 	if len(mountPoint) == 0 {
@@ -47,7 +54,7 @@ func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem,
 	}
 
 	mountOpts := fuse.MountOptions{
-		Debug:       debug,
+		Debug:       constant.DebugEnabled(ctx),
 		Options:     options,
 		DirectMount: false,
 		FsName:      mountPoint,
@@ -71,7 +78,7 @@ func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem,
 		return nil, fmt.Errorf("failed to create fuse server: %w", err)
 	}
 
-	fs := newFilesystem(ctx, mountPoint, root, srv, isTempMount)
+	fs := newFilesystem(ctx, mountPoint, authHandler, root, srv, isTempMount)
 
 	return fs, nil
 }
@@ -79,6 +86,7 @@ func createFS(ctx context.Context, mountPoint string, debug bool) (_ Filesystem,
 func newFilesystem(
 	parentCtx context.Context,
 	mountpoint string,
+	authHandler security.AuthorizationHandler,
 	root *rootNode,
 	srv *fuse.Server,
 	isTempMount bool,
@@ -97,7 +105,7 @@ func newFilesystem(
 
 		symlinkFiles: nil,
 
-		authManager: newAuthManager(ctx),
+		authManager: security.NewAuthorizationManager(ctx, authHandler),
 
 		mu: &sync.Mutex{},
 	}
@@ -115,7 +123,7 @@ type filesystem struct {
 
 	symlinkFiles []string
 
-	authManager *authManager
+	authManager *security.AuthorizationManager
 
 	mu *sync.Mutex
 }

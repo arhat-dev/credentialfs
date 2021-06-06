@@ -24,7 +24,3 @@ type Filesystem interface {
 		permitDuration time.Duration,
 	) error
 }
-
-func CreateFilesystem(ctx context.Context, at string, debug bool) (Filesystem, error) {
-	return createFS(ctx, at, debug)
-}

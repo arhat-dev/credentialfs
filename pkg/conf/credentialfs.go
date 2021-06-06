@@ -29,6 +29,9 @@ type Config struct {
 
 type AppConfig struct {
 	Log log.ConfigSet `json:"log" yaml:"log"`
+
+	AuthService     AuthServiceConfig     `json:"authService" yaml:"authService"`
+	KeychainService KeychainServiceConfig `json:"keychainService" yaml:"keychainService"`
 }
 
 func FlagsForAppConfig(prefix string, config *AppConfig) *pflag.FlagSet {

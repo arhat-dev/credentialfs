@@ -6,8 +6,14 @@ package fs
 import (
 	"context"
 	"fmt"
+
+	"arhat.dev/credentialfs/pkg/security"
 )
 
-func createFS(ctx context.Context, at string, debug bool) (Filesystem, error) {
+func CreateFilesystem(
+	ctx context.Context,
+	mountPoint string,
+	authHandler security.AuthorizationHandler,
+) (Filesystem, error) {
 	return nil, fmt.Errorf("unsupported")
 }

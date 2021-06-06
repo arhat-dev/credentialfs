@@ -24,6 +24,12 @@ import (
 
 	"arhat.dev/credentialfs/pkg/cmd"
 	"arhat.dev/credentialfs/pkg/version"
+
+	// password managers
+	_ "arhat.dev/credentialfs/pkg/pm/bitwarden"
+
+	// security services
+	_ "arhat.dev/credentialfs/pkg/security/system"
 )
 
 func main() {

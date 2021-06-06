@@ -3,11 +3,18 @@ package pm
 import (
 	"context"
 	"fmt"
+
+	"arhat.dev/credentialfs/pkg/security"
 )
 
 type (
 	ConfigFactoryFunc func() interface{}
-	FactoryFunc       func(ctx context.Context, configName string, config interface{}) (Interface, error)
+	FactoryFunc       func(
+		ctx context.Context,
+		configName string,
+		config interface{},
+		keychainHandler security.KeychainHandler,
+	) (Interface, error)
 )
 
 type bundle struct {
@@ -44,11 +51,17 @@ func NewConfig(name string) (interface{}, error) {
 	return b.cf(), nil
 }
 
-func NewDriver(ctx context.Context, name, configName string, config interface{}) (Interface, error) {
-	b, ok := supportedDrivers[name]
+func NewDriver(
+	ctx context.Context,
+	driverName string,
+	configName string,
+	config interface{},
+	keychainHandler security.KeychainHandler,
+) (Interface, error) {
+	b, ok := supportedDrivers[driverName]
 	if !ok {
-		return nil, fmt.Errorf("driver %q not found", name)
+		return nil, fmt.Errorf("driver %q not found", driverName)
 	}
 
-	return b.f(ctx, configName, config)
+	return b.f(ctx, configName, config, keychainHandler)
 }

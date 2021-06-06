@@ -25,10 +25,8 @@ import (
 
 	"arhat.dev/credentialfs/pkg/conf"
 	"arhat.dev/credentialfs/pkg/constant"
-	"arhat.dev/credentialfs/pkg/fs"
-
-	// password managers
-	_ "arhat.dev/credentialfs/pkg/pm/bitwarden"
+	"arhat.dev/credentialfs/pkg/manager"
+	"arhat.dev/credentialfs/pkg/security"
 )
 
 func NewRootCmd() *cobra.Command {
@@ -73,8 +71,19 @@ func NewRootCmd() *cobra.Command {
 func run(appCtx context.Context, config *conf.Config) error {
 	logger := log.Log.WithName("app")
 
-	_ = logger
-	mgr, err := fs.NewManager(appCtx, config.FS)
+	authHandler, err := security.NewAuthorizationHandler(config.App.AuthService.Name, config.App.AuthService.Config)
+	if err != nil {
+		return fmt.Errorf("failed to create authorization handler: %w", err)
+	}
+
+	keychainHandler, err := security.NewKeychainHandler(
+		config.App.KeychainService.Name, config.App.KeychainService.Config,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create keychain handler: %w", err)
+	}
+
+	mgr, err := manager.NewManager(appCtx, logger.WithName("mgr"), authHandler, keychainHandler, &config.FS)
 	if err != nil {
 		return fmt.Errorf("failed to create fs manager: %w", err)
 	}
@@ -87,7 +96,7 @@ func run(appCtx context.Context, config *conf.Config) error {
 	defer func() {
 		err2 := mgr.Stop()
 		if err2 != nil {
-			fmt.Println(err2.Error())
+			logger.E("manager stopped with error", log.Error(err2))
 		}
 	}()
 

@@ -1,4 +1,4 @@
-package fs
+package security
 
 import (
 	"context"
@@ -7,14 +7,15 @@ import (
 
 	"arhat.dev/pkg/queue"
 	"go.uber.org/multierr"
-
-	"arhat.dev/credentialfs/pkg/auth"
 )
 
-func newAuthManager(runningCtx context.Context) *authManager {
+func NewAuthorizationManager(
+	runningCtx context.Context,
+	handler AuthorizationHandler,
+) *AuthorizationManager {
 	ctx, cancel := context.WithCancel(runningCtx)
 
-	return &authManager{
+	return &AuthorizationManager{
 		ctx:    ctx,
 		cancel: cancel,
 
@@ -24,13 +25,15 @@ func newAuthManager(runningCtx context.Context) *authManager {
 
 		pendingDestroyTasks: &sync.Map{},
 
-		mu: &sync.Mutex{},
+		mu: &sync.RWMutex{},
 	}
 }
 
-type authManager struct {
+type AuthorizationManager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	handler AuthorizationHandler
 
 	workerExited chan struct{}
 
@@ -38,7 +41,7 @@ type authManager struct {
 
 	pendingDestroyTasks *sync.Map
 
-	mu *sync.Mutex
+	mu *sync.RWMutex
 }
 
 type (
@@ -48,12 +51,12 @@ type (
 
 	timeoutDataValue struct {
 		timeout  time.Duration
-		authData auth.AuthorizationData
+		authData AuthorizationData
 	}
 )
 
 // Start in background
-func (m *authManager) Start() {
+func (m *AuthorizationManager) Start() {
 	stopSig := m.ctx.Done()
 
 	m.tq.Start(stopSig)
@@ -67,7 +70,7 @@ func (m *authManager) Start() {
 				return
 			case td := <-ch:
 				k := td.Data.(*timeoutDataValue)
-				err := auth.DestroyAuthorization(k.authData)
+				err := m.handler.Destroy(k.authData)
 				if err != nil {
 					// TODO: log error
 
@@ -79,7 +82,7 @@ func (m *authManager) Start() {
 	}()
 }
 
-func (m *authManager) Stop() (err error) {
+func (m *AuthorizationManager) Stop() (err error) {
 	m.cancel()
 
 	// wait until no one consumes takeCh
@@ -97,7 +100,7 @@ func (m *authManager) Stop() (err error) {
 
 		var err2 error
 		for i := 0; i < 5; i++ {
-			err2 = auth.DestroyAuthorization(td.Data.(*timeoutDataValue).authData)
+			err2 = m.handler.Destroy(td.Data.(*timeoutDataValue).authData)
 			if err2 == nil {
 				break
 			}
@@ -155,35 +158,39 @@ func (m *authManager) Stop() (err error) {
 // RequestAuth checks if the authorization is still valid before actually request
 // user authorization
 // the lock is required to make auth request sequential
-func (m *authManager) RequestAuth(authReqKey, prompt string) (auth.AuthorizationData, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *AuthorizationManager) RequestAuth(authReqKey, prompt string) (AuthorizationData, error) {
+	m.mu.RLock()
 
 	// requested this request
 	v, ok := m.tq.Find(timeoutDataKey{
 		authReqKey: authReqKey,
 	})
 	if ok {
+		m.mu.RUnlock()
 		return v.(*timeoutDataValue).authData, nil
 	}
+	m.mu.RUnlock()
 
-	return auth.RequestAuthorization(authReqKey, prompt)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.handler.Request(authReqKey, prompt)
 }
 
 // ScheduleAuthDestroy after a successful auth, it makes sure there will be only one
 // timeout task for one authReqKey in queue
 //
 // caller should not allow further operation if the returned error is not nil
-func (m *authManager) ScheduleAuthDestroy(
+func (m *AuthorizationManager) ScheduleAuthDestroy(
 	authReqKey string,
-	authData auth.AuthorizationData,
+	authData AuthorizationData,
 	after time.Duration,
 ) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	if after == 0 {
-		return auth.DestroyAuthorization(authData)
+		return m.handler.Destroy(authData)
 	}
 
 	v, ok := m.tq.Find(timeoutDataKey{

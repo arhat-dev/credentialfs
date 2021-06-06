@@ -1,4 +1,4 @@
-package fs
+package manager
 
 import (
 	"context"
@@ -7,9 +7,13 @@ import (
 	"strings"
 	"sync"
 
+	"arhat.dev/pkg/log"
+
 	"arhat.dev/credentialfs/pkg/conf"
 	"arhat.dev/credentialfs/pkg/constant"
+	"arhat.dev/credentialfs/pkg/fs"
 	"arhat.dev/credentialfs/pkg/pm"
+	"arhat.dev/credentialfs/pkg/security"
 	"arhat.dev/credentialfs/pkg/ui"
 )
 
@@ -19,25 +23,28 @@ type bundle struct {
 }
 
 type Manager struct {
-	ctx context.Context
-
-	debugFilesystem bool
-	fsMountpoint    string
+	ctx    context.Context
+	logger log.Interface
 
 	fsSpec []*bundle
 
-	fs Filesystem
+	fs fs.Filesystem
 
 	createLoginHandleFunc func(configName string) pm.LoginInputCallbackFunc
 
 	mu *sync.Mutex
 }
 
-func NewManager(ctx context.Context, config conf.FilesystemConfig) (*Manager, error) {
+func NewManager(
+	ctx context.Context,
+	logger log.Interface,
+	authHandler security.AuthorizationHandler,
+	keychainHandler security.KeychainHandler,
+	config *conf.FilesystemConfig,
+) (*Manager, error) {
 	mgr := &Manager{
-		ctx:             ctx,
-		debugFilesystem: config.Debug,
-		fsMountpoint:    config.Mountpoint,
+		ctx:    ctx,
+		logger: logger,
 
 		mu: &sync.Mutex{},
 	}
@@ -57,7 +64,13 @@ func NewManager(ctx context.Context, config conf.FilesystemConfig) (*Manager, er
 		}
 
 		names[fsc.PM.Name] = struct{}{}
-		pmd, err := pm.NewDriver(ctx, fsc.PM.Driver, fsc.PM.Name, fsc.PM.Config)
+		pmd, err := pm.NewDriver(
+			ctx,
+			fsc.PM.Driver,
+			fsc.PM.Name,
+			fsc.PM.Config,
+			keychainHandler,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create password manager %q: %w", fsc.PM.Name, err)
 		}
@@ -66,6 +79,14 @@ func NewManager(ctx context.Context, config conf.FilesystemConfig) (*Manager, er
 			pm:     pmd,
 			mounts: fsc.Mounts,
 		})
+	}
+
+	fsCtx := context.WithValue(ctx, constant.ContextKeyDebug, config.Debug)
+
+	var err error
+	mgr.fs, err = fs.CreateFilesystem(fsCtx, config.Mountpoint, authHandler)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fuse filesystem: %w", err)
 	}
 
 	return mgr, nil
@@ -80,11 +101,6 @@ func (m *Manager) Start() (err error) {
 			_ = m.Stop()
 		}
 	}()
-
-	m.fs, err = CreateFilesystem(m.ctx, m.fsMountpoint, m.debugFilesystem)
-	if err != nil {
-		return fmt.Errorf("failed to create fuse filesystem: %w", err)
-	}
 
 	err = m.fs.Start()
 	if err != nil {

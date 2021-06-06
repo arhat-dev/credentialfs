@@ -11,26 +11,27 @@ import (
 	bw "arhat.dev/bitwardenapi/bwinternal"
 	"github.com/denisbrodbeck/machineid"
 
-	"arhat.dev/credentialfs/pkg/auth"
 	"arhat.dev/credentialfs/pkg/pm"
+	"arhat.dev/credentialfs/pkg/security"
 )
 
 // nolint:revive
 const (
 	Name = "bitwarden"
 
-	officialServiceEndpointURL = "https://vault.bitwarden.com"
-
-	// officialAPIEndpointHost          = "api.bitwarden.com"
+	officialServiceEndpointURL       = "https://vault.bitwarden.com"
 	officialNotificationEndpointHost = "notifications.bitwarden.com"
-	// officialIdentityEndpointHost     = "identity.bitwarden.com"
-	// officialEventsEndpointHost       = "events.bitwarden.com"
 )
 
 func init() {
 	pm.Register(
 		Name,
-		func(ctx context.Context, configName string, config interface{}) (pm.Interface, error) {
+		func(
+			ctx context.Context,
+			configName string,
+			config interface{},
+			keychainHandler security.KeychainHandler,
+		) (pm.Interface, error) {
 			c, ok := config.(*Config)
 			if !ok {
 				return nil, fmt.Errorf("unexpected non bitwarden config: %T", config)
@@ -74,6 +75,8 @@ func init() {
 				subscriptions: newSubManager(),
 
 				updateCh: make(chan pm.CredentialUpdate, 1),
+
+				keychainHandler: keychainHandler,
 
 				mu: &sync.RWMutex{},
 			}
@@ -136,6 +139,8 @@ type Driver struct {
 
 	updateCh chan pm.CredentialUpdate
 
+	keychainHandler security.KeychainHandler
+
 	mu *sync.RWMutex
 }
 
@@ -160,7 +165,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 	if !d.saveLogin {
 		loginUpdated = false
 
-		_ = auth.DeleteLogin(Name, d.configName)
+		_ = d.keychainHandler.DeleteLogin(Name, d.configName)
 
 		input, err = requestUserLogin(d.twoFactorKind, input)
 		if err != nil {
@@ -170,18 +175,18 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 		input = &pm.LoginInput{}
 
 		// login may be saved before
-		input.Username, input.Password, err = auth.GetLogin(Name, d.configName)
+		input.Username, input.Password, err = d.keychainHandler.GetLogin(Name, d.configName)
 		if err != nil {
 			switch {
-			case errors.Is(err, auth.ErrNotFound):
+			case errors.Is(err, security.ErrNotFound):
 				input, err = requestUserLogin(d.twoFactorKind, input)
 				if err != nil {
 					return err
 				}
 
 				loginUpdated = true
-			case errors.Is(err, auth.ErrOldInvalid):
-				_ = auth.DeleteLogin(Name, d.configName)
+			case errors.Is(err, security.ErrOldInvalid):
+				_ = d.keychainHandler.DeleteLogin(Name, d.configName)
 
 				input, err = requestUserLogin(d.twoFactorKind, input)
 				if err != nil {
@@ -212,7 +217,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 		if d.saveLogin && loginUpdated &&
 			(len(input.Username) != 0 || len(input.Password) != 0) {
 
-			err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
+			err = d.keychainHandler.SaveLogin(Name, d.configName, input.Username, input.Password)
 			if err != nil {
 				return err
 			}
@@ -226,7 +231,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 	}
 
 	// we were using saved login, request new login from user input
-	_ = auth.DeleteLogin(Name, d.configName)
+	_ = d.keychainHandler.DeleteLogin(Name, d.configName)
 	input, err = requestUserLogin(d.twoFactorKind, input)
 	if err != nil {
 		return err
@@ -241,7 +246,7 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 		return nil
 	}
 
-	err = auth.SaveLogin(Name, d.configName, input.Username, input.Password)
+	err = d.keychainHandler.SaveLogin(Name, d.configName, input.Username, input.Password)
 	if err != nil {
 		return err
 	}

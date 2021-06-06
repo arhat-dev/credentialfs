@@ -1,11 +1,29 @@
-package auth
+package system
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"github.com/keybase/go-keychain"
+
+	"arhat.dev/credentialfs/pkg/security"
 )
+
+func init() {
+	// for darwin, it should be the default keychain handler
+	security.RegisterKeychainHandler("", newKeychainHandler, newKeychainHandlerConfig)
+	security.RegisterKeychainHandler("system", newKeychainHandler, newKeychainHandlerConfig)
+}
+
+func newKeychainHandlerConfig() interface{} { return &keychainConfig{} }
+
+type keychainConfig struct{}
+
+func newKeychainHandler(config interface{}) (security.KeychainHandler, error) {
+	_ = config
+	// TODO: check system support
+	return &keychainHandler{}, nil
+}
 
 const (
 	keychainServiceName = "credentialfs"
@@ -30,8 +48,15 @@ func newKeychainItem(pmDriver, configName string) *keychain.Item {
 	return &item
 }
 
-// SaveLogin saves username and password to system keychain
-func SaveLogin(pmDriver, configName, username, password string) error {
+// nolint:unused,deadcode
+type loginData struct {
+	Username string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
+}
+
+type keychainHandler struct{}
+
+func (h *keychainHandler) SaveLogin(pmDriver, configName, username, password string) error {
 	login := &loginData{
 		Username: username,
 		Password: password,
@@ -65,8 +90,7 @@ func SaveLogin(pmDriver, configName, username, password string) error {
 	return nil
 }
 
-// DeleteLogin deletes previously stored username and password
-func DeleteLogin(pmDriver, configName string) error {
+func (h *keychainHandler) DeleteLogin(pmDriver, configName string) error {
 	err := keychain.DeleteItem(*newKeychainItem(pmDriver, configName))
 	if err != nil && err != keychain.ErrorItemNotFound {
 		return fmt.Errorf("keychain: failed to delete login: %w", err)
@@ -74,8 +98,7 @@ func DeleteLogin(pmDriver, configName string) error {
 
 	return nil
 }
-
-func GetLogin(pmDriver, configName string) (username, password string, err error) {
+func (h *keychainHandler) GetLogin(pmDriver, configName string) (username, password string, err error) {
 	query := newKeychainItem(pmDriver, configName)
 
 	query.SetMatchLimit(keychain.MatchLimitOne)
@@ -87,14 +110,14 @@ func GetLogin(pmDriver, configName string) (username, password string, err error
 	}
 
 	if len(results) != 1 {
-		return "", "", ErrNotFound
+		return "", "", security.ErrNotFound
 	}
 
 	login := &loginData{}
 	err = json.Unmarshal(results[0].Data, login)
 	if err != nil {
-		_ = DeleteLogin(pmDriver, configName)
-		return "", "", fmt.Errorf("keychain: failed to unmarshal login data: %w", ErrOldInvalid)
+		_ = h.DeleteLogin(pmDriver, configName)
+		return "", "", fmt.Errorf("keychain: failed to unmarshal login data: %w", security.ErrOldInvalid)
 	}
 
 	return login.Username, login.Password, nil

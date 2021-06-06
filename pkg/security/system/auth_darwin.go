@@ -1,4 +1,7 @@
-package auth
+//go:build !test
+// +build !test
+
+package system
 
 // https://developer.apple.com/documentation/security/authorization_services
 
@@ -15,7 +18,27 @@ package auth
 import "C"
 import (
 	"fmt"
+
+	"arhat.dev/credentialfs/pkg/security"
 )
+
+func init() {
+	// for darwin, it should be the default auth handler
+	security.RegisterAuthorizationHandler("", newAuthHandler, newAuthHandlerConfig)
+	security.RegisterAuthorizationHandler("system", newAuthHandler, newAuthHandlerConfig)
+}
+
+func newAuthHandlerConfig() interface{} { return &config{} }
+
+type config struct{}
+
+func newAuthHandler(config interface{}) (security.AuthorizationHandler, error) {
+	_ = config
+	// TODO: check system support
+	return &authHandler{}, nil
+}
+
+type authHandler struct{}
 
 // nolint:deadcode,varcheck
 const (
@@ -36,12 +59,11 @@ const (
 	authBadAddress            = C.errAuthorizationBadAddress
 )
 
-// RequestAuthorization requests user authorization via macos Authorization Service
-func RequestAuthorization(key, prompt string) (AuthorizationData, error) {
+func (s *authHandler) Request(authReqKey, prompt string) (security.AuthorizationData, error) {
 	ref_ptr := C.create_auth_ref_ptr()
 
 	code := C.request_auth(
-		C.CString(key),
+		C.CString(authReqKey),
 		C.CString(prompt),
 		C.size_t(len(prompt)),
 		ref_ptr,
@@ -59,7 +81,7 @@ func RequestAuthorization(key, prompt string) (AuthorizationData, error) {
 	}
 }
 
-func DestroyAuthorization(d AuthorizationData) error {
+func (s *authHandler) Destroy(d security.AuthorizationData) error {
 	ref_ptr, ok := d.(*C.AuthorizationRef)
 	if !ok {
 		return fmt.Errorf("invalid authorization data type: %T", d)

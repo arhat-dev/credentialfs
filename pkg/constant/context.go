@@ -16,9 +16,21 @@ limitations under the License.
 
 package constant
 
+import "context"
+
 type ContextKey string
 
 // nolint:revive
 const (
-	ContextKeyConfig = ContextKey("config")
+	ContextKeyConfig ContextKey = "config"
+	ContextKeyDebug  ContextKey = "debug"
 )
+
+func DebugEnabled(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+
+	debug, ok := ctx.Value(ContextKeyConfig).(bool)
+	return ok && debug
+}

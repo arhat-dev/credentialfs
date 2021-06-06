@@ -7,6 +7,8 @@ arhat.dev/pkg/envhelper
 arhat.dev/pkg/hashhelper
 arhat.dev/pkg/log
 arhat.dev/pkg/queue
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
 # github.com/deepmap/oapi-codegen v1.7.0
 ## explicit
 github.com/deepmap/oapi-codegen/pkg/runtime
@@ -34,12 +36,17 @@ github.com/klauspost/compress/flate
 github.com/mitchellh/go-ps
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
 # github.com/spf13/cobra v1.1.3
 ## explicit
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit
 github.com/spf13/pflag
+# github.com/stretchr/testify v1.7.0
+## explicit
+github.com/stretchr/testify/assert
 # github.com/vmihailenco/msgpack/v5 v5.3.4
 ## explicit
 github.com/vmihailenco/msgpack/v5

@@ -63,6 +63,7 @@ func NewRootCmd() *cobra.Command {
 
 	flags.StringVarP(&configFile, "config", "c", constant.DefaultConfigFile,
 		"path to the config file")
+	flags.AddFlagSet(log.FlagsForLogConfig("log.", cliLogConfig))
 	flags.AddFlagSet(conf.FlagsForAppConfig("", &config.App))
 	flags.AddFlagSet(conf.FlagsForFilesystemConfig("", &config.FS))
 

@@ -8,6 +8,8 @@
 
 Userspace filesystem daemon for credentials stored in password managers
 
+<p align="center"><img src="./docs/assets/auth-macos.png" alt="macos-auth" width="60%"/></p>
+
 ## Why this project?
 
 Say you are using password manager (abbrv. `pm`) for your own credential management, but you always have to store some of the credentials locally for apps without the support for reading from system keychain (e.g. `rclone`, `kubectl`), that can be risky once you have your computer hacked and the hacker can read these local credentials without your permit.
@@ -20,9 +22,9 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 
 - Sync credential files among your working computers with online password manager
 - Store credentials directly in config files (e.g. kubeconfig using client certificate for authentication)
-  - Then you can manage your home directory in a git system safely
-- Store passwords in files (e.g. ssh password)
-  - Then you can `cat /path/to/password` in your scripts, and run your scripts with authorization process
+  - Then you can manage your home directory using a private git repo safely
+- Authorized automation: store passwords in files (e.g. ssh password)
+  - Then you can `cat /path/to/password` in your automation scripts, and run your scripts after authorization process.
 
 ## How it works?
 
@@ -31,7 +33,7 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 - When there is a `open()` request to your credential, it will prompt an authorization dialog with caller's `User Name + uid`, `Process Name + pid`, `Parent Process Name + ppid` through system's security api.
   - The authorization request decision is made based on the value of `sha256sum(uid + "|" + pid + "|" + ppid + "|" + path)`
     - __NOTE:__ To reduce uncessary authorization for command line users, `pid` here is the executable name (if we can determine).
-- The mounted credential (file) can only be read by the `open()` caller after a successful authorization.
+- The mounted credentials (files) can only be read by the `open()` caller after a successful authorization.
   - You can configure how long a successful authorization will last to avoid frequent interruptions.
 
 ## Features

@@ -145,7 +145,8 @@ func (d *Driver) startSyncing(ctx context.Context) error {
 					ck := getCacheKey(v.Key)
 					cv := d.cache.Get(ck.ItemName, ck.ItemKey)
 					if cv == nil {
-						panic("new cipher data not cached, should not happen")
+						// the cipher may be renamed
+						continue
 					}
 
 					data := cv.Value

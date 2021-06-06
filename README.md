@@ -121,7 +121,7 @@ fs:
       to: ${HOME}/.ssh/joe.doyle
 
       # override defaultPenaltyDuration
-      permitDuration: 5s
+      penaltyDuration: 5s
 
       # override defaultPermitDuration
       permitDuration: 5s

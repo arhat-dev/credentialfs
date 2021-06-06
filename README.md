@@ -118,15 +118,24 @@ fs:
       permitDuration: 5s
 ```
 
-## Build
+## Build and Install
 
-Run `make credentialfs` in the project root, you can find built executable at `./build/credentialfs`
+Clonse this repo and run `make credentialfs` in the repo root, you can find built executable at `./build/credentialfs`, move it to somewhere you can access.
+
+Or you can install it to `${GOPATH}/bin/credentialfs` using following command directly:
+
+```bash
+CGO_ENABLED=1 GOOS=$(go env GOHOSTOS) GOARCH=$(go env GOHOSTARCH) \
+  go get arhat.dev/credentialfs/cmd/credentialfs
+```
 
 ## Run
 
 ```bash
-/path/to/credentialfs -c /path/to/your/config
+/path/to/credentialfs
 ```
+
+By default, it will read your config file at `${HOME}/.config/credentiafs/config.yaml`, you can also specify your custom config file with `-c /path/to/your/config`
 
 ## Acknowledgement
 

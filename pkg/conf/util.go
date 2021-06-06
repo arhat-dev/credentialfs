@@ -41,8 +41,8 @@ func ReadConfig(
 ) (context.Context, error) {
 	flags := cmd.Flags()
 	configBytes, err := ioutil.ReadFile(*configFile)
-	if err != nil && flags.Changed("config") {
-		return nil, fmt.Errorf("failed to read config file %s: %v", *configFile, err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
 	if len(configBytes) > 0 {

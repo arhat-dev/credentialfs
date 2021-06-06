@@ -44,15 +44,21 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 
 ## Support Matrix
 
-- OS
-  - [x] `macos` (requires [`osxfuse`](https://github.com/osxfuse/osxfuse))
-  - [ ] `windows`
-  - [ ] `linux`
+- Authorization Service
+  - OS native
+    - [x] `macos` (requires [`osxfuse`](https://github.com/osxfuse/osxfuse))
+    - [ ] `windows`
+    - [ ] `linux`
+  - External Device (TODO)
+  - External Network Service (TODO)
+    - [ ] `webauthn` (`fido2`)
 - Password Managers
   - [x] [`bitwarden`](./docs/pm/bitwarden.md)
 - Login Method
   - [x] Simple username + password
-  - [ ] 2FA
+  - 2FA (TODO)
+    - [ ] username + password + one time password
+  - Passwordless (TODO)
 
 ## Config
 

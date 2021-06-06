@@ -18,6 +18,7 @@ package system
 import "C"
 import (
 	"fmt"
+	"sync"
 
 	"arhat.dev/credentialfs/pkg/security"
 )
@@ -31,14 +32,6 @@ func init() {
 func newAuthHandlerConfig() interface{} { return &config{} }
 
 type config struct{}
-
-func newAuthHandler(config interface{}) (security.AuthorizationHandler, error) {
-	_ = config
-	// TODO: check system support
-	return &authHandler{}, nil
-}
-
-type authHandler struct{}
 
 // nolint:deadcode,varcheck
 const (
@@ -59,7 +52,21 @@ const (
 	authBadAddress            = C.errAuthorizationBadAddress
 )
 
+func newAuthHandler(config interface{}) (security.AuthorizationHandler, error) {
+	_ = config
+	// TODO: check system support
+	return &authHandler{mu: &sync.Mutex{}}, nil
+}
+
+type authHandler struct {
+	// seralize requests
+	mu *sync.Mutex
+}
+
 func (s *authHandler) Request(authReqKey, prompt string) (security.AuthorizationData, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	ref_ptr := C.create_auth_ref_ptr()
 
 	code := C.request_auth(
@@ -82,6 +89,9 @@ func (s *authHandler) Request(authReqKey, prompt string) (security.Authorization
 }
 
 func (s *authHandler) Destroy(d security.AuthorizationData) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	ref_ptr, ok := d.(*C.AuthorizationRef)
 	if !ok {
 		return fmt.Errorf("invalid authorization data type: %T", d)

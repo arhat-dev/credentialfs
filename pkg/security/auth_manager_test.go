@@ -16,5 +16,4 @@ func TestNewAuthManager(t *testing.T) {
 	assert.NotNil(t, mgr.cancel)
 
 	assert.NotNil(t, mgr.pendingDestroyTasks)
-	assert.NotNil(t, mgr.mu)
 }

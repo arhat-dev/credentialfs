@@ -33,8 +33,6 @@ func NewAuthorizationManager(
 		defaultPenaltyDuration: defaultPenaltyDuration,
 
 		pendingDestroyTasks: &sync.Map{},
-
-		mu: &sync.RWMutex{},
 	}
 }
 
@@ -53,8 +51,6 @@ type AuthorizationManager struct {
 	defaultPenaltyDuration time.Duration
 
 	pendingDestroyTasks *sync.Map
-
-	mu *sync.RWMutex
 }
 
 type (
@@ -199,9 +195,7 @@ func (m *AuthorizationManager) RequestAuth(
 		return v.(*timeoutDataValue).authData, nil
 	}
 
-	m.mu.Lock()
 	result, err := m.handler.Request(authReqKey, prompt)
-	m.mu.Unlock()
 
 	if err != nil {
 		dur := m.defaultPenaltyDuration
@@ -228,9 +222,6 @@ func (m *AuthorizationManager) ScheduleAuthDestroy(
 	if permitDuration != nil {
 		dur = *permitDuration
 	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 
 	if dur == 0 {
 		return m.handler.Destroy(authData)

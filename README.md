@@ -45,19 +45,23 @@ Another solution is to mount a custom filesystem, which integrates with your pas
 ## Support Matrix
 
 - Authorization Service
-  - OS native
+  - OS Native
     - [x] `macos` (requires [`osxfuse`](https://github.com/osxfuse/osxfuse))
-    - [ ] `windows`
-    - [ ] `linux`
+    - [ ] `windows` (TODO)
+    - [ ] `linux` (TODO)
   - External Device (TODO)
   - External Network Service (TODO)
     - [ ] `webauthn` (`fido2`)
 - Password Managers
   - [x] [`bitwarden`](./docs/pm/bitwarden.md)
+  - [ ] `1password` (TODO)
+  - [ ] `keepass` (TODO)
+  - [ ] `keybase` (TODO)
 - Login Method
   - [x] Simple username + password
   - 2FA (TODO)
     - [ ] username + password + one time password
+    - [ ] username + password + U2F
   - Passwordless (TODO)
 
 ## Config
@@ -95,7 +99,7 @@ fs:
   loginInterface: cli
 
   # NOTE: the authorization is process specific as noted in `How it works?`
-  #       thir penalty & permit durations are timed individually
+  #       their penalty & permit durations are timed individually
 
   # duration to always deny access after authorization failed
   defaultPenaltyDuration: 10s

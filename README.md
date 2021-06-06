@@ -88,6 +88,17 @@ fs:
   # currently only supports `cli`
   loginInterface: cli
 
+  # NOTE: the authorization is process specific as noted in `How it works?`
+  #       thir penalty & permit durations are timed individually
+
+  # duration to always deny access after authorization failed
+  defaultPenaltyDuration: 10s
+
+  # duration to always allow access after authorization succeeded
+  #
+  # defaults to 0, which means always request authorization
+  defaultPermitDuration: 0s
+
   # filesystem spec
   # list of password managers and their file mounts
   spec:
@@ -109,12 +120,10 @@ fs:
       # local mount path
       to: ${HOME}/.ssh/joe.doyle
 
-      # how long will a successful authorization valid for
-      # defaults to 0, which means always request authorization
-      #
-      # NOTE: the authorization is process specific, if you use
-      #       different tools to read from a same credential file
-      #       thir permit durations are timed individually
+      # override defaultPenaltyDuration
+      permitDuration: 5s
+
+      # override defaultPermitDuration
       permitDuration: 5s
 ```
 

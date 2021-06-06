@@ -2,11 +2,13 @@
 
 [Bitwarden](https://bitwarden.com/) password manager
 
-## Supported Targets
+## Supported Targets (`from`)
 
 - [x] Login (`username` & `password`)
 - [x] Custom Fields
 - [x] Attachments
+
+__NOTE:__ This app will not handle name collisions, please make sure the listed targets are unique in your vault, or you won't get correct updates.
 
 ## Config
 

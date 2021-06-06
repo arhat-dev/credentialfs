@@ -19,6 +19,8 @@ func NewAuthorizationManager(
 		ctx:    ctx,
 		cancel: cancel,
 
+		handler: handler,
+
 		workerExited: make(chan struct{}),
 
 		tq: queue.NewTimeoutQueue(),

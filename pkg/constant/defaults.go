@@ -16,7 +16,27 @@ limitations under the License.
 
 package constant
 
-// nolint:revive
-const (
-	DefaultConfigFile = "/etc/credentialfs/config.yaml"
+import (
+	"os"
+	"path/filepath"
+	"runtime"
 )
+
+// nolint:revive
+var (
+	DefaultConfigFile = ""
+)
+
+func init() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil || len(homeDir) == 0 {
+		switch runtime.GOOS {
+		case "windows":
+			DefaultConfigFile = ""
+		default:
+			DefaultConfigFile = "/etc/credentialfs/config.yaml"
+		}
+	} else {
+		DefaultConfigFile = filepath.Join(homeDir, ".config", "credentialfs", "config.yaml")
+	}
+}

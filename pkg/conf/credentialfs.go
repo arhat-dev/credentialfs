@@ -36,5 +36,7 @@ type AppConfig struct {
 
 func FlagsForAppConfig(prefix string, config *AppConfig) *pflag.FlagSet {
 	fs := pflag.NewFlagSet("app", pflag.ExitOnError)
+	fs.StringVar(&config.AuthService.Name, prefix+"authServcie", "system", "")
+	fs.StringVar(&config.KeychainService.Name, prefix+"keychainService", "system", "")
 	return fs
 }

@@ -1,6 +1,10 @@
 package conf
 
-import "time"
+import (
+	"time"
+
+	"github.com/spf13/pflag"
+)
 
 type FilesystemConfig struct {
 	Mountpoint string `json:"mountpoint" yaml:"mountpoint"`
@@ -19,4 +23,10 @@ type MountConfig struct {
 	To   string `json:"to" yaml:"to"`
 
 	PermitDuration time.Duration `json:"permitDuration" yaml:"permitDuration"`
+}
+
+func FlagsForFilesystemConfig(prefix string, config *FilesystemConfig) *pflag.FlagSet {
+	fs := pflag.NewFlagSet("fs", pflag.ExitOnError)
+	fs.StringVar(&config.LoginInterface, prefix+"loginInterface", "cli", "")
+	return fs
 }

@@ -56,7 +56,6 @@ Another solution is to mount a custom filesystem, which integrates with your pas
   - [x] [`bitwarden`](./docs/pm/bitwarden.md)
   - [ ] `1password` (TODO)
   - [ ] `keepass` (TODO)
-  - [ ] `keybase` (TODO)
 - Login Method
   - [x] Simple username + password
   - 2FA (TODO)
@@ -155,12 +154,6 @@ CGO_ENABLED=1 GOOS=$(go env GOHOSTOS) GOARCH=$(go env GOHOSTARCH) \
 ```
 
 By default, it will read your config file at `${HOME}/.config/credentiafs/config.yaml`, you can also specify your custom config file with `-c /path/to/your/config`
-
-## Acknowledgement
-
-- [kbfs from keybase/client](https://github.com/keybase/client/blob/master/go/kbfs)
-- [keybase/go-keychain](https://github.com/keybase/go-keychain)
-- [github/certstore](https://github.com/github/certstore)
 
 ## LICENSE
 

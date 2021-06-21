@@ -104,7 +104,7 @@ jobs:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         GITHUB_DOCKER_USERNAME: ${{ github.actor }}
-        GITHUB_DOCKER_PASSWORD: ${{ secrets.GH_PACKAGES_TOKEN }}
+        GITHUB_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         IMAGE_REPOS: docker.io/arhatdev,ghcr.io/arhat-dev
       run: |
         docker login docker.io -u="${DOCKERHUB_USERNAME}" -p="${DOCKERHUB_PASSWORD}"
@@ -128,7 +128,7 @@ jobs:
   #       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   #       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   #       GITHUB_DOCKER_USERNAME: ${{ github.actor }}
-  #       GITHUB_DOCKER_PASSWORD: ${{ secrets.GH_PACKAGES_TOKEN }}
+  #       GITHUB_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
   #       IMAGE_REPOS: docker.io/arhatdev,ghcr.io/arhat-dev
   #     run: |
   #       docker login docker.io -u="${DOCKERHUB_USERNAME}" -p="${DOCKERHUB_PASSWORD}"

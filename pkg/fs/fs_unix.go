@@ -71,8 +71,12 @@ func CreateFilesystem(
 	})
 
 	err = syscall.Unmount(mountPoint, 0)
-	if err != nil && !errors.Is(err, syscall.EINVAL) {
-		return nil, fmt.Errorf("failed to encure mountpoint clean: %w", err)
+	if err != nil {
+		if !errors.Is(err, syscall.EINVAL) &&
+			// permission error on macos big sur
+			!errors.Is(err, syscall.EPERM) {
+			return nil, fmt.Errorf("failed to encure mountpoint clean: %w", err)
+		}
 	}
 
 	srv, err := fuse.NewServer(fileFS, mountPoint, &mountOpts)

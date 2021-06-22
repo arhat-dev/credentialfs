@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"arhat.dev/credentialfs/pkg/security"
+	"github.com/mritd/touchid"
 )
 
 func init() {
@@ -54,18 +55,40 @@ const (
 
 func newAuthHandler(config interface{}) (security.AuthorizationHandler, error) {
 	_ = config
-	// TODO: check system support
-	return &authHandler{mu: &sync.Mutex{}}, nil
+	// TODO: check system support for TouchID
+	return &authHandler{mu: &sync.Mutex{}, canTouchID: true}, nil
 }
+
+var emptyDarwinAuthData security.AuthorizationData = (*darwinEmptyAuthData)(nil)
+
+type darwinEmptyAuthData struct{}
 
 type authHandler struct {
 	// seralize requests
 	mu *sync.Mutex
+
+	canTouchID bool
 }
 
 func (s *authHandler) Request(authReqKey, prompt string) (security.AuthorizationData, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// try TouchID authorization
+	if s.canTouchID {
+		ok, err := touchid.Auth(touchid.DeviceTypeAny, prompt)
+		if err == nil {
+			if !ok {
+				return nil, fmt.Errorf("authorization denied by user")
+			}
+
+			return emptyDarwinAuthData, nil
+		}
+	}
+
+	s.canTouchID = false
+
+	// failed TouchID, not supported, fallback to password auth
 
 	ref_ptr := C.create_auth_ref_ptr()
 
@@ -89,6 +112,10 @@ func (s *authHandler) Request(authReqKey, prompt string) (security.Authorization
 }
 
 func (s *authHandler) Destroy(d security.AuthorizationData) error {
+	if d == emptyDarwinAuthData {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

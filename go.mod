@@ -11,6 +11,7 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 	github.com/klauspost/compress v1.13.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0
+	github.com/mritd/touchid v0.0.1
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0

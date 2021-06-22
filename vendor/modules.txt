@@ -34,6 +34,9 @@ github.com/klauspost/compress/flate
 # github.com/mitchellh/go-ps v1.0.0
 ## explicit
 github.com/mitchellh/go-ps
+# github.com/mritd/touchid v0.0.1
+## explicit
+github.com/mritd/touchid
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0

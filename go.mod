@@ -3,23 +3,23 @@ module arhat.dev/credentialfs
 go 1.16
 
 require (
-	arhat.dev/bitwardenapi v0.0.0-20210601080552-4b54d659a45d
-	arhat.dev/pkg v0.5.7-0.20210603224723-f26131419b3d
-	github.com/deepmap/oapi-codegen v1.7.0
+	arhat.dev/bitwardenapi v0.0.0-20210605130951-03f16d731691
+	arhat.dev/pkg v0.5.8
+	github.com/deepmap/oapi-codegen v1.8.1
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/keybase/go-keychain v0.0.0-20201121013009-976c83ec27a6
 	github.com/klauspost/compress v1.13.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mritd/touchid v0.0.1
-	github.com/spf13/cobra v1.1.3
+	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/vmihailenco/msgpack/v5 v5.3.4
-	go.uber.org/multierr v1.6.0
-	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
-	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+	go.uber.org/multierr v1.7.0
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
+	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	nhooyr.io/websocket v1.8.7
 )

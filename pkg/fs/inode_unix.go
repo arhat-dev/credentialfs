@@ -5,11 +5,8 @@ package fs
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"math"
-	"os/user"
 	"strconv"
 	"sync"
 	"syscall"
@@ -18,7 +15,8 @@ import (
 	"arhat.dev/pkg/hashhelper"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
-	"github.com/mitchellh/go-ps"
+
+	"arhat.dev/credentialfs/pkg/security"
 )
 
 func newRootNode() *rootNode {
@@ -153,80 +151,24 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 		return nil, 0, syscall.EACCES
 	}
 
-	username := fmt.Sprintf("UID:%d", caller.Uid)
-	u, err := user.LookupId(strconv.FormatInt(int64(caller.Uid), 10))
+	uidStr := strconv.FormatInt(int64(caller.Uid), 10)
+	req, err := security.CreateAuthRequest(uidStr, uint64(caller.Pid), n.target)
 	if err != nil {
 		return nil, 0, syscall.EACCES
-	}
-
-	if len(u.Name) != 0 {
-		username = fmt.Sprintf("%s (uid=%d)", u.Name, caller.Uid)
-	}
-
-	var (
-		pidForHashing     string
-		processName       string
-		parentProcessName string
-		ppid              int
-	)
-
-	p, err := ps.FindProcess(int(caller.Pid))
-	if err == nil {
-		ppid = p.PPid()
-		processName = fmt.Sprintf("%q (pid=%d)", p.Executable(), caller.Pid)
-		pidForHashing = p.Executable()
-
-		pp, err := ps.FindProcess(ppid)
-		if err == nil {
-			parentProcessName = fmt.Sprintf("%q pid=%d", pp.Executable(), pp.Pid())
-		} else {
-			parentProcessName = fmt.Sprintf("PID:%d", p.PPid())
-		}
-	} else {
-		processName = fmt.Sprintf("PID:%d", caller.Pid)
-		pidForHashing = processName
 	}
 
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
-			h := sha256.New()
+			authKey := req.CreateKey(nil)
+			prompt := req.FormatPrompt()
 
-			h.Write([]byte(strconv.FormatInt(int64(caller.Uid), 10)))
-			h.Write([]byte("|"))
-			h.Write([]byte(pidForHashing))
-			h.Write([]byte("|"))
-			h.Write([]byte(strconv.FormatInt(int64(ppid), 10)))
-			h.Write([]byte("|"))
-			h.Write([]byte(n.target))
-
-			authRequestKey := fmt.Sprintf(
-				"dev.arhat.credentialfs.file.read.%s",
-				hex.EncodeToString(h.Sum(nil)),
-			)
-			prompt := fmt.Sprintf(
-				"%s is using %s to read your credential at %s, authorize to proceed",
-				username,
-				processName,
-				n.target,
-			)
-
-			if len(parentProcessName) != 0 {
-				prompt = fmt.Sprintf(
-					"%s is using %s (invoked in %s) to read your credential at %s, authorize to proceed",
-					username,
-					processName,
-					parentProcessName,
-					n.target,
-				)
-			}
-
-			authData, err := n.fs.authManager.RequestAuth(authRequestKey, prompt, n.penaltyDuration)
+			authData, err := n.fs.authManager.RequestAuth(authKey, prompt, n.penaltyDuration)
 			if err != nil {
 				return nil, 0, syscall.EACCES
 			}
 
-			err = n.fs.authManager.ScheduleAuthDestroy(authRequestKey, authData, n.permitDuration)
+			err = n.fs.authManager.ScheduleAuthDestroy(authKey, authData, n.permitDuration)
 			if err != nil {
 				// failed to schedule auth destroy
 				return nil, 0, syscall.EBUSY

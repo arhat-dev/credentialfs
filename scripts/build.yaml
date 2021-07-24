@@ -1,0 +1,118 @@
+tools:
+  golang:
+  - name: local
+    env:
+    - GO111MODULE=on
+    - GO_PROXY=direct
+    - GO_SUMDB=off
+    cmd: [go]
+
+  - name: in-docker
+    cmd@template:
+    - docker
+    - run
+    - -it
+    - --rm
+    - -e
+    - CGO_ENABLED={{ .Env.CGO_ENABLED | default "false" }}
+    - -e
+    - GO111MODULE=on
+    - -e
+    - GO_PROXY=direct
+    - -e
+    - GO_SUMDB=off
+    - -e
+    - GOOS={{ .Env.MATRIX_KERNEL | default .Env.HOST_KERNEL }}
+    - -e
+    - GOARCH={{ .Env.MATRIX_ARCH | default .Env.HOST_ARCH | getGolangArch }}
+    - -v
+    - "{{ .Env.DUKKHA_WORKING_DIR }}:{{ .Env.DUKKHA_WORKING_DIR }}"
+    - -w
+    - "{{ .Env.DUKKHA_WORKING_DIR }}"
+    - ghcr.io/arhat-dev/builder-golang:1.16-alpine
+    - go
+
+golang:build:
+- name: credentialfs
+  path: ./cmd/credentialfs
+  cgo:
+    enabled@template: |-
+      {{- if eq .Env.MATRIX_KERNEL "darwin" -}}
+        true
+      {{- else -}}
+        false
+      {{- end -}}
+
+  matrix:
+    kernel:
+    - windows
+    - linux
+    - freebsd
+    - netbsd
+    - openbsd
+    arch:
+    - x86
+    - arm64
+    - amd64
+    - armv7
+    - armv6
+    - armv5
+    exclude:
+    - kernel:
+      - windows
+      arch: [arm64]
+    include:
+    - kernel:
+      - darwin
+      arch:
+      - arm64
+      - amd64
+    - kernel:
+      - solaris
+      - dragonfly
+      arch: [amd64]
+    - kernel:
+      - linux
+      arch:
+      - mips
+      - mipshf
+      - mipsle
+      - mipslehf
+      - mips64
+      - mips64hf
+      - mips64le
+      - mips64lehf
+      - ppc64
+      - ppc64le
+      - s390x
+      - riscv64
+  tags:
+  - nokube
+  - nocloud
+  - netgo
+  - osusergo
+
+  ldflags@env:
+  - -s -w
+  - -X "arhat.dev/credentialfs/pkg/version.branch=${GIT_BRANCH}"
+  - -X "arhat.dev/credentialfs/pkg/version.commit=${GIT_COMMIT}"
+  - -X "arhat.dev/credentialfs/pkg/version.tag=${GIT_TAG}"
+  - -X "arhat.dev/credentialfs/pkg/version.arch=${MATRIX_ARCH}"
+  - -X "arhat.dev/credentialfs/pkg/version.workspaceClean=${GIT_WORKTREE_CLEAN}"
+  - -X "arhat.dev/credentialfs/pkg/version.goCompilerPlatform=$(go version | cut -d\  -f4)"
+
+  outputs@template: |-
+    {{- $suffix := "" -}}
+    {{- if eq .Env.MATRIX_KERNEL "windows" -}}
+      {{- $suffix = ".exe" -}}
+    {{- end -}}
+
+    {{- if and (eq .Env.MATRIX_KERNEL .Env.HOST_KERNEL) (eq .Env.MATRIX_ARCH .Env.HOST_ARCH) }}
+    - build/credentialfs{{ $suffix }}
+    {{- end }}
+    - build/credentialfs.{{ .Env.MATRIX_KERNEL }}.{{ .Env.MATRIX_ARCH }}{{ $suffix }}
+
+  extra_args:
+  - -buildmode=default
+  - -mod=vendor
+  - -trimpath

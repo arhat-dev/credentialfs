@@ -5,9 +5,12 @@
   "SpacesAftertabs": false,
   "NoColor": false,
   "Exclude": [
-    "vendor", "generated"
+    "vendor/.*",
+    "build/.*",
+    "generated/.*",
+    "\\.git/.*",
+    "\\.DS_Store"
   ],
-  "AllowedContentTypes": [],
   "PassedFiles": [],
   "Disable": {
     "EndOfLine": false,

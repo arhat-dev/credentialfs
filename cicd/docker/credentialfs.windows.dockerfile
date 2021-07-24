@@ -1,8 +1,19 @@
-ARG ARCH=amd64
+ARG MATRIX_ARCH
 
-FROM arhatdev/builder-go:alpine as builder
+FROM ghcr.io/arhat-dev/builder-golang:1.16-alpine as builder
+
+ARG MATRIX_ARCH
+
+COPY . /app
+RUN dukkha golang local build credentialfs \
+    -m kernel=windows -m arch=${MATRIX_ARCH}
+
 # TODO: support multiarch build
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
-ARG APP=credentialfs
+
+LABEL org.opencontainers.image.source https://github.com/arhat-dev/credentialfs
+
+ARG MATRIX_ARCH
+COPY --from=builder /app/build/credentialfs.windows.${MATRIX_ARCH} /credentialfs
 
 ENTRYPOINT [ "/credentialfs" ]

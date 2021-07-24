@@ -48,8 +48,6 @@ golang:build:
     - windows
     - linux
     - freebsd
-    - netbsd
-    - openbsd
     arch:
     - x86
     - arm64
@@ -69,7 +67,6 @@ golang:build:
       - amd64
     - kernel:
       - solaris
-      - dragonfly
       arch: [amd64]
     - kernel:
       - linux

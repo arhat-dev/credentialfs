@@ -49,10 +49,7 @@ jobs:
       run: |
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.linux.all
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.freebsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.netbsd.all TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.openbsd.all TAGS=''
         CGO_ENABLED=0 make -j$(nproc --all) credentialfs.solaris.amd64 TAGS=''
-        CGO_ENABLED=0 make -j$(nproc --all) credentialfs.dragonfly.amd64 TAGS=''
 
     # - name: Package
     #   run: |
@@ -60,7 +57,7 @@ jobs:
 
     - name: Hash
       run: |
-        os_list="linux freebsd netbsd openbsd solaris dragonfly"
+        os_list="linux freebsd solaris"
 
         cd build
         for os in ${os_list}; do
@@ -292,7 +289,7 @@ jobs:
     - name: Create Checksum Files
       run: |
         files="sha256 sha512 md5"
-        os_list="darwin windows freebsd netbsd openbsd solaris dragonfly"
+        os_list="darwin windows freebsd solaris"
 
         for f in ${files}; do
           printf "# Linux builds\n\n" > "build/${f}.txt"
@@ -632,136 +629,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_name: credentialfs.freebsd.arm64
         asset_path: build/credentialfs.freebsd.arm64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.x86
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.x86
-        asset_path: build/credentialfs.openbsd.x86
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.amd64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.amd64
-        asset_path: build/credentialfs.openbsd.amd64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.armv5
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.armv5
-        asset_path: build/credentialfs.openbsd.armv5
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.armv6
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.armv6
-        asset_path: build/credentialfs.openbsd.armv6
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.armv7
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.armv7
-        asset_path: build/credentialfs.openbsd.armv7
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.openbsd.arm64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.openbsd.arm64
-        asset_path: build/credentialfs.openbsd.arm64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.x86
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.x86
-        asset_path: build/credentialfs.netbsd.x86
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.amd64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.amd64
-        asset_path: build/credentialfs.netbsd.amd64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.armv5
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.armv5
-        asset_path: build/credentialfs.netbsd.armv5
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.armv6
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.armv6
-        asset_path: build/credentialfs.netbsd.armv6
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.armv7
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.armv7
-        asset_path: build/credentialfs.netbsd.armv7
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.netbsd.arm64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.netbsd.arm64
-        asset_path: build/credentialfs.netbsd.arm64
-        asset_content_type: application/octet-stream
-
-    - name: Upload credentialfs.dragonfly.amd64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_name: credentialfs.dragonfly.amd64
-        asset_path: build/credentialfs.dragonfly.amd64
         asset_content_type: application/octet-stream
 
     - name: Upload credentialfs.solaris.amd64

@@ -1,0 +1,23 @@
+tools:
+  github:
+  - name: local
+
+github:release:
+- name: credentialfs
+  hooks:
+    before:
+    - shell: |-
+        cd build
+        openssl dgst -sha256 credentialfs.* > sha256.txt
+        openssl dgst -sha512 credentialfs.* > sha512.txt
+        openssl dgst -md5 credentialfs.* > md5.txt
+
+  draft: true
+  tag: ${GIT_TAG}
+  pre_release: false
+  title@env: ${GIT_TAG}
+  notes@file|template: cicd/release-notes.md
+  files:
+  - path: build/credentialfs.*
+  # checksums
+  - path: build/*.txt

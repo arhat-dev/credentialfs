@@ -56,18 +56,14 @@ jobs:
 
   unit-tests:
     if: contains(github.head_ref, 'deps/') == false
-    container:
-      image: arhatdev/builder-go:debian
     needs:
     - stylecheck
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    # - name: Install Extra Packages (for cgo deps)
-    #   run: |
-    #     apt update
-    #     apt install -y \
-    #       python3-distutils=3.7.3-1 python3-lib2to3=3.7.3-1 python3=3.7.3-1
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.16.x
 
     - name: Test Packages
       run: |
@@ -77,62 +73,30 @@ jobs:
       run: |
         make test.cmd
 
-    - name: Report Test Coverage
-      uses: codecov/codecov-action@v1
-      # with:
-      #   token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
-      #   fail_ci_if_error: true # optional (default = false)
+    - uses: sonarsource/sonarqube-scan-action@v1.0.0
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
   build-linux-images:
     if: contains(github.head_ref, 'deps/') == false
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        # - windows-latest
     needs:
     - stylecheck
     - unit-tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
-    - name: Install qemu-static
-      run: |
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-
-        sudo apt update
-        sudo apt install -y qemu-user-static
+    - uses: arhat-dev/actions-setup-dukkha@master
 
     - name: Build and Push Images
       env:
-        DOCKER_CLI_EXPERIMENTAL: enabled
-        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-        GITHUB_DOCKER_USERNAME: ${{ github.actor }}
-        GITHUB_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        IMAGE_REPOS: docker.io/arhatdev,ghcr.io/arhat-dev
+        GHCR_USER: ${{ github.actor }}
+        GHCR_PASS: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        docker login docker.io -u="${DOCKERHUB_USERNAME}" -p="${DOCKERHUB_PASSWORD}"
-        docker login ghcr.io/arhat-dev -u="${GITHUB_DOCKER_USERNAME}" -p="${GITHUB_DOCKER_PASSWORD}"
-
-        make image.build.linux.all
-        make image.push.linux.all
-
-  # TODO: Add support for windows image build in arhat-dev/dockerfile
-  # build-windows-images:
-  #   if: contains(github.head_ref, 'deps/') == false
-  #   needs:
-  #   - stylecheck
-  #   - unit-tests
-  #   runs-on: windows-latest
-  #   steps:
-  #   - uses: actions/checkout@v2
-  #   - name: Build and Push Images
-  #     env:
-  #       DOCKER_CLI_EXPERIMENTAL: enabled
-  #       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-  #       GITHUB_DOCKER_USERNAME: ${{ github.actor }}
-  #       GITHUB_DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-  #       IMAGE_REPOS: docker.io/arhatdev,ghcr.io/arhat-dev
-  #     run: |
-  #       docker login docker.io -u="${DOCKERHUB_USERNAME}" -p="${DOCKERHUB_PASSWORD}"
-  #       docker login ghcr.io/arhat-dev -u="${GITHUB_DOCKER_USERNAME}" -p="${GITHUB_DOCKER_PASSWORD}"
-
-  #       make image.build.windows.all
-  #       make image.push.windows.all
+        dukkha buildah local build credentialfs
+        dukkha buildah local push credentialfs

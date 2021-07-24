@@ -13,7 +13,8 @@ FROM scratch
 LABEL org.opencontainers.image.source https://github.com/arhat-dev/credentialfs
 
 ARG MATRIX_ARCH
-# we may need to access http endpoint, so include these tls ca-certs
+# we may need to access https endpoint (e.g. vaultwarden service)
+# so include these tls ca-certs
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 COPY --from=builder \
     "/app/build/credentialfs.linux.${MATRIX_ARCH}" \

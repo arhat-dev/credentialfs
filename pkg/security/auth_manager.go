@@ -176,7 +176,6 @@ func (m *AuthorizationManager) Stop() (err error) {
 
 // RequestAuth checks if the authorization is still valid before actually request
 // user authorization
-// the lock is required to make auth request sequential
 func (m *AuthorizationManager) RequestAuth(
 	authReqKey, prompt string, penaltyDuration *time.Duration,
 ) (AuthorizationData, error) {
@@ -184,19 +183,20 @@ func (m *AuthorizationManager) RequestAuth(
 		authReqKey: authReqKey,
 	}
 
+	// check whether failed before
 	_, ok := m.penaltyTQ.Find(target)
 	if ok {
 		return nil, fmt.Errorf("penalty duration not ended")
 	}
 
-	// requested this request
+	// check whether allowed this request
 	v, ok := m.permitTQ.Find(target)
 	if ok {
 		return v.(*timeoutDataValue).authData, nil
 	}
 
+	// this request is new, do actual auth request
 	result, err := m.handler.Request(authReqKey, prompt)
-
 	if err != nil {
 		dur := m.defaultPenaltyDuration
 		if penaltyDuration != nil {
@@ -239,10 +239,14 @@ func (m *AuthorizationManager) ScheduleAuthDestroy(
 		return nil
 	}
 
-	return m.permitTQ.OfferWithDelay(timeoutDataKey{
-		authReqKey: authReqKey,
-	}, &timeoutDataValue{
-		authData: authData,
-		timeout:  dur,
-	}, dur)
+	return m.permitTQ.OfferWithDelay(
+		timeoutDataKey{
+			authReqKey: authReqKey,
+		},
+		&timeoutDataValue{
+			authData: authData,
+			timeout:  dur,
+		},
+		dur,
+	)
 }

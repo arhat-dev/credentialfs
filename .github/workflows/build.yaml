@@ -39,10 +39,10 @@ jobs:
         include:
         - os: ubuntu-latest
           kernel: linux
-        - os: windows-latest
-          kernel: windows
-        - os: macos-latest
-          kernel: darwin
+        # - os: windows-latest
+        #   kernel: windows
+        # - os: macos-latest
+        #   kernel: darwin
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:

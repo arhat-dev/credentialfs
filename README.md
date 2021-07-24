@@ -4,7 +4,7 @@
 [![Build](https://github.com/arhat-dev/credentialfs/workflows/Build/badge.svg)](https://github.com/arhat-dev/credentialfs/actions?query=workflow%3ABuild)
 [![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/credentialfs)](https://pkg.go.dev/arhat.dev/credentialfs)
 [![GoReportCard](https://goreportcard.com/badge/arhat.dev/credentialfs)](https://goreportcard.com/report/arhat.dev/credentialfs)
-[![codecov](https://codecov.io/gh/arhat-dev/credentialfs/branch/master/graph/badge.svg)](https://codecov.io/gh/arhat-dev/credentialfs)
+[![Coverage](https://badge.arhat.dev/sonar/coverage/arhat-dev_credentialfs?branch=master&token=ba3fdf4695ea2653932053fbf4c2bab0)](https://sonar.arhat.dev/dashboard?id=arhat-dev_credentialfs)
 
 Userspace filesystem daemon for credentials stored in password managers
 

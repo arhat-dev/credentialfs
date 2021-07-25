@@ -8,7 +8,7 @@
 
 Userspace filesystem daemon for credentials stored in password managers
 
-<p align="center"><img src="./docs/assets/auth-macos.png" alt="macos-auth" width="80%"/></p>
+<p align="center"><img src="./docs/assets/workflow.png" alt="workflow" width="80%"/></p>
 
 ## Why this project?
 

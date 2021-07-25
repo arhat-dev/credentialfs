@@ -11,7 +11,7 @@ import (
 func TestCreateAuthRequest(t *testing.T) {
 	uid := strconv.FormatInt(int64(os.Getuid()), 10)
 
-	req, err := CreateAuthRequest(uid, uint64(os.Getpid()), "foo")
+	req, err := CreateAuthRequest(uid, uint64(os.Getpid()), OpRead, "foo")
 	assert.NoError(t, err)
 
 	// TODO: Ensure user display name exists before test
@@ -31,5 +31,6 @@ func TestCreateAuthRequest(t *testing.T) {
 
 	assert.Greater(t, len(req.ProcessCallingPath), 0)
 
+	assert.Equal(t, "read", req.Operation)
 	assert.Equal(t, "foo", req.File)
 }

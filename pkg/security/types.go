@@ -46,6 +46,26 @@ type KeychainHandler interface {
 	GetLogin(pmDriver, configName string) (username, password string, err error)
 }
 
+type OperationKind int
+
+const (
+	OpRead OperationKind = iota + 1
+	OpWrite
+	OpAppend
+	OpSeek
+	OpRemove
+)
+
+func (k OperationKind) String() string {
+	return map[OperationKind]string{
+		OpRead:   "read",
+		OpWrite:  "write",
+		OpAppend: "append",
+		OpSeek:   "seek",
+		OpRemove: "remove",
+	}[k]
+}
+
 // AuthRequest is the request containing request user and intension
 type AuthRequest struct {
 	UserDisplayName string `json:"user_display_name" yaml:"user_display_name"`
@@ -64,7 +84,8 @@ type AuthRequest struct {
 
 	ProcessCallingPath []ProcessNameAndID `json:"process_calling_path" yaml:"process_calling_path"`
 
-	File string `json:"file" yaml:"file"`
+	Operation string `json:"operation" yaml:"operation"`
+	File      string `json:"file" yaml:"file"`
 }
 
 func (r *AuthRequest) CreateKey(policy *AuthPolicy) string {
@@ -117,7 +138,7 @@ type ProcessNameAndID struct {
 	PID  uint64 `json:"pid" yaml:"pid"`
 }
 
-func CreateAuthRequest(uid string, pid uint64, file string) (*AuthRequest, error) {
+func CreateAuthRequest(uid string, pid uint64, op OperationKind, file string) (*AuthRequest, error) {
 	pidStr := strconv.FormatUint(pid, 10)
 
 	// basic validation
@@ -128,6 +149,10 @@ func CreateAuthRequest(uid string, pid uint64, file string) (*AuthRequest, error
 
 		if uid == "" {
 			return nil, fmt.Errorf("security: invalid empty uid")
+		}
+
+		if op.String() == "" {
+			return nil, fmt.Errorf("unknown operation %d", op)
 		}
 
 		if file == "" {
@@ -212,7 +237,8 @@ func CreateAuthRequest(uid string, pid uint64, file string) (*AuthRequest, error
 
 		ProcessCallingPath: processCallingPath,
 
-		File: file,
+		Operation: op.String(),
+		File:      file,
 	}, nil
 }
 
@@ -245,5 +271,6 @@ func createProcessCallingPath(ppid int, ret *([]ProcessNameAndID)) error {
 	return createProcessCallingPath(pp.PPid(), ret)
 }
 
+// AuthPolicy to automatically allow/deny certain access
 type AuthPolicy struct {
 }

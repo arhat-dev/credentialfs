@@ -152,7 +152,9 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	}
 
 	uidStr := strconv.FormatInt(int64(caller.Uid), 10)
-	req, err := security.CreateAuthRequest(uidStr, uint64(caller.Pid), n.target)
+	req, err := security.CreateAuthRequest(
+		uidStr, uint64(caller.Pid), security.OpRead, n.target,
+	)
 	if err != nil {
 		return nil, 0, syscall.EACCES
 	}

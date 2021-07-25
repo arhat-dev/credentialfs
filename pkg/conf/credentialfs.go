@@ -30,13 +30,13 @@ type Config struct {
 type AppConfig struct {
 	Log log.ConfigSet `json:"log" yaml:"log"`
 
-	AuthService     AuthServiceConfig     `json:"authService" yaml:"authService"`
-	KeychainService KeychainServiceConfig `json:"keychainService" yaml:"keychainService"`
+	AuthService     AuthServiceConfig     `json:"auth_service" yaml:"auth_service"`
+	KeychainService KeychainServiceConfig `json:"keychain_service" yaml:"keychain_service"`
 }
 
 func FlagsForAppConfig(prefix string, config *AppConfig) *pflag.FlagSet {
 	fs := pflag.NewFlagSet("app", pflag.ExitOnError)
-	fs.StringVar(&config.AuthService.Name, prefix+"authServcie", "system", "")
-	fs.StringVar(&config.KeychainService.Name, prefix+"keychainService", "system", "")
+	fs.StringVar(&config.AuthService.Name, prefix+"auth-servcie", "system", "")
+	fs.StringVar(&config.KeychainService.Name, prefix+"keychain-service", "system", "")
 	return fs
 }

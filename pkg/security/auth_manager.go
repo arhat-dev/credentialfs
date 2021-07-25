@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"arhat.dev/pkg/queue"
-	"go.uber.org/multierr"
 )
 
 func NewAuthorizationManager(
@@ -44,6 +43,8 @@ type AuthorizationManager struct {
 
 	workerExited chan struct{}
 
+	policy *AuthPolicy
+
 	penaltyTQ *queue.TimeoutQueue
 	permitTQ  *queue.TimeoutQueue
 
@@ -59,8 +60,8 @@ type (
 	}
 
 	timeoutDataValue struct {
-		timeout  time.Duration
-		authData AuthorizationData
+		// timeout  time.Duration
+		// authData AuthorizationData
 	}
 )
 
@@ -72,7 +73,7 @@ func (m *AuthorizationManager) Start() {
 	go func() {
 		ch := m.penaltyTQ.TakeCh()
 		for range ch {
-			// we do nothing here
+			// TODO: maybe do some logging for penalty end?
 		}
 	}()
 
@@ -82,121 +83,44 @@ func (m *AuthorizationManager) Start() {
 
 		ch := m.permitTQ.TakeCh()
 
-		for {
-			select {
-			case <-stopSig:
-				return
-			case td := <-ch:
-				k := td.Data.(*timeoutDataValue)
-				err := m.handler.Destroy(k.authData)
-				if err != nil {
-					// TODO: log error
-
-					// retry in 1s
-					_ = m.permitTQ.OfferWithDelay(td.Key, td.Data, time.Second)
-				}
-			}
+		for range ch {
+			// TODO: maybe do some logging for permit expire?
 		}
 	}()
 
 }
 
-func (m *AuthorizationManager) Stop() (err error) {
+func (m *AuthorizationManager) Stop() error {
 	m.cancel()
 
-	// wait until no one consumes takeCh
-	<-m.workerExited
-
-	destroyAuthWithRetry := func(td *queue.TimeoutData) {
-		defer func() {
-			// prevent null pointer
-			rec := recover()
-			if rec != nil {
-				// TODO: log error
-				_ = rec
-			}
-		}()
-
-		var err2 error
-		for i := 0; i < 5; i++ {
-			err2 = m.handler.Destroy(td.Data.(*timeoutDataValue).authData)
-			if err2 == nil {
-				break
-			}
-		}
-
-		err = multierr.Append(
-			err,
-			err2,
-		)
-	}
-
-	ch := m.permitTQ.TakeCh()
-
-	timer := time.NewTimer(0)
-	if !timer.Stop() {
-		<-timer.C
-	}
-
-	// the ch is bufferred, we can drain it without any help
-	// by checking its buffered size
-	for len(ch) > 0 {
-		td := <-ch
-		destroyAuthWithRetry(td)
-
-		// if there is no bufferred data in channel,
-		// chances are that the sender is not working.
-		// wait for 1s for extreme condition
-	waitLoop:
-		for len(ch) == 0 {
-			_ = timer.Reset(time.Second)
-
-			select {
-			case td = <-ch:
-				if !timer.Stop() {
-					<-timer.C
-				}
-
-				destroyAuthWithRetry(td)
-			case <-timer.C:
-				_ = timer.Stop()
-				break waitLoop
-			}
-		}
-	}
-
-	// we have drained the ch, now we just need to handle data not timed out
-
-	for _, td := range m.permitTQ.Remains() {
-		destroyAuthWithRetry(&td)
-	}
-
-	return
+	return nil
 }
 
 // RequestAuth checks if the authorization is still valid before actually request
 // user authorization
 func (m *AuthorizationManager) RequestAuth(
-	authReqKey, prompt string, penaltyDuration *time.Duration,
-) (AuthorizationData, error) {
+	req *AuthRequest,
+	permitDuration *time.Duration,
+	penaltyDuration *time.Duration,
+) error {
 	target := timeoutDataKey{
-		authReqKey: authReqKey,
+		authReqKey: req.CreateKey(m.policy),
 	}
 
 	// check whether failed before
 	_, ok := m.penaltyTQ.Find(target)
 	if ok {
-		return nil, fmt.Errorf("penalty duration not ended")
+		return fmt.Errorf("penalty duration not ended")
 	}
 
-	// check whether allowed this request
-	v, ok := m.permitTQ.Find(target)
+	// check whether have allowed this request before
+	_, ok = m.permitTQ.Find(target)
 	if ok {
-		return v.(*timeoutDataValue).authData, nil
+		return nil
 	}
 
 	// this request is new, do actual auth request
-	result, err := m.handler.Request(authReqKey, prompt)
+	err := m.handler.Authorize(req)
 	if err != nil {
 		dur := m.defaultPenaltyDuration
 		if penaltyDuration != nil {
@@ -206,47 +130,12 @@ func (m *AuthorizationManager) RequestAuth(
 		_ = m.penaltyTQ.OfferWithDelay(target, struct{}{}, dur)
 	}
 
-	return result, err
-}
-
-// ScheduleAuthDestroy after a successful auth, it makes sure there will be only one
-// timeout task for one authReqKey in queue
-//
-// caller should not allow further operation if the returned error is not nil
-func (m *AuthorizationManager) ScheduleAuthDestroy(
-	authReqKey string,
-	authData AuthorizationData,
-	permitDuration *time.Duration,
-) error {
 	dur := m.defaultPermitDuration
 	if permitDuration != nil {
 		dur = *permitDuration
 	}
 
-	if dur == 0 {
-		return m.handler.Destroy(authData)
-	}
-
-	v, ok := m.permitTQ.Find(timeoutDataKey{
-		authReqKey: authReqKey,
-	})
-	if ok {
-		if v.(*timeoutDataValue).authData != authData {
-			// TODO: possible memory leak!
-			_ = authData
-		}
-
-		return nil
-	}
-
 	return m.permitTQ.OfferWithDelay(
-		timeoutDataKey{
-			authReqKey: authReqKey,
-		},
-		&timeoutDataValue{
-			authData: authData,
-			timeout:  dur,
-		},
-		dur,
+		target, &timeoutDataValue{}, dur,
 	)
 }

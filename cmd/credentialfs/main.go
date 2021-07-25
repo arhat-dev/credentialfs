@@ -30,6 +30,7 @@ import (
 
 	// security services
 	_ "arhat.dev/credentialfs/pkg/security/system"
+	_ "arhat.dev/credentialfs/pkg/security/webhook"
 )
 
 func main() {

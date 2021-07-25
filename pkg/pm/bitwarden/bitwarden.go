@@ -100,10 +100,10 @@ func init() {
 }
 
 type Config struct {
-	EndpointURL     string `json:"endpointURL" yaml:"endpointURL"`
-	SaveLogin       bool   `json:"saveLogin" yaml:"saveLogin"`
-	DeviceID        string `json:"deviceID" yaml:"deviceID"`
-	TwoFactorMethod string `json:"twoFactorMethod" yaml:"twoFactorMethod"`
+	EndpointURL     string `json:"endpoint_url" yaml:"endpoint_url"`
+	SaveLogin       bool   `json:"save_login" yaml:"save_login"`
+	DeviceID        string `json:"device_id" yaml:"device_id"`
+	TwoFactorMethod string `json:"two_factor_method" yaml:"two_factor_method"`
 }
 
 var _ pm.Interface = (*Driver)(nil)

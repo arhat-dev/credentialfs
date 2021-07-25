@@ -29,10 +29,7 @@ type AuthorizationData interface{}
 
 type AuthorizationHandler interface {
 	// Request explicit user authorization
-	Request(authReqKey, prompt string) (AuthorizationData, error)
-
-	// Destroy granted authorization
-	Destroy(d AuthorizationData) error
+	Authorize(req *AuthRequest) error
 }
 
 type KeychainHandler interface {

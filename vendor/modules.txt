@@ -7,6 +7,7 @@ arhat.dev/pkg/envhelper
 arhat.dev/pkg/hashhelper
 arhat.dev/pkg/log
 arhat.dev/pkg/queue
+arhat.dev/pkg/tlshelper
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/deepmap/oapi-codegen v1.8.1

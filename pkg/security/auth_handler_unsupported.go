@@ -15,10 +15,6 @@ type nopAuthHandlerConfig struct{}
 
 type nopAuthHandler struct{}
 
-func (nopAuthHandler) Request(authReqKey, prompt string) (AuthorizationData, error) {
-	return nil, nil
-}
-
-func (nopAuthHandler) Destroy(d AuthorizationData) error {
+func (nopAuthHandler) Authorize(req *AuthRequest) error {
 	return nil
 }

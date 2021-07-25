@@ -162,18 +162,9 @@ func (n *leafNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fu
 	for i := 10; i < math.MaxInt16; i++ {
 		_, loaded := n.usedFds.LoadOrStore(i, struct{}{})
 		if !loaded {
-			authKey := req.CreateKey(nil)
-			prompt := req.FormatPrompt()
-
-			authData, err := n.fs.authManager.RequestAuth(authKey, prompt, n.penaltyDuration)
+			err := n.fs.authManager.RequestAuth(req, n.permitDuration, n.penaltyDuration)
 			if err != nil {
 				return nil, 0, syscall.EACCES
-			}
-
-			err = n.fs.authManager.ScheduleAuthDestroy(authKey, authData, n.permitDuration)
-			if err != nil {
-				// failed to schedule auth destroy
-				return nil, 0, syscall.EBUSY
 			}
 
 			return n.newOpenedLeafNodeFile(i), 0, 0

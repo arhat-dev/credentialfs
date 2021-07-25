@@ -141,14 +141,13 @@ fs:
 
 ## Build and Install
 
-Clonse this repo and run `make credentialfs` in the repo root, you can find built executable at `./build/credentialfs`, move it to somewhere you can access.
-
-Or you can install it to `${GOPATH}/bin/credentialfs` using following command directly:
+Clonse this repo and run
 
 ```bash
-CGO_ENABLED=1 GOOS=$(go env GOHOSTOS) GOARCH=$(go env GOHOSTARCH) \
-  go get arhat.dev/credentialfs/cmd/credentialfs
+go build -o build/credentialfs ./cmd/credentialfs
 ```
+
+in the repo root, you can find the built executable at `./build/credentialfs`, move it to somewhere you can access.
 
 ## Run
 

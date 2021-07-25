@@ -25,7 +25,7 @@ pkg() {
 }
 
 cmd() {
-    go_test="${common_go_test_env} CGO_ENABLED=0 go test ${common_go_test_flags} -coverprofile=coverage.cmd.txt -coverpkg=./cmd/... ./cmd/..."
+    go_test="${common_go_test_env} CGO_ENABLED=1 go test ${common_go_test_flags} -coverprofile=coverage.cmd.txt -coverpkg=./cmd/... ./cmd/..."
 
     set -ex
     eval "${go_test}"

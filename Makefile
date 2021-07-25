@@ -12,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# IMAGE_REPOS is the comma separated list of image registries
-IMAGE_REPOS ?= docker.io/arhatdev,ghcr.io/arhat-dev
-
-export IMAGE_REPOS
-
-DEFAULT_IMAGE_MANIFEST_TAG ?= latest
-
 include scripts/lint.mk
 
 GOMOD := GOPROXY=direct GOSUMDB=off go mod
@@ -29,24 +22,6 @@ vendor:
 
 # testing
 include scripts/test/unit.mk
-
-# binary build
-include scripts/build/credentialfs.mk
-
-# image
-include scripts/image/credentialfs.mk
-
-image.build.linux.all: \
-	image.build.credentialfs.linux.all
-
-image.build.windows.all: \
-	image.build.credentialfs.windows.all
-
-image.push.linux.all: \
-	image.push.credentialfs.linux.all
-
-image.push.windows.all: \
-	image.push.credentialfs.windows.all
 
 # manifest gen
 include scripts/gen/manifests.mk

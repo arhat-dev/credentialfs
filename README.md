@@ -8,7 +8,7 @@
 
 Userspace filesystem daemon for credentials stored in password managers
 
-<p align="center"><img src="./docs/assets/workflow.png" alt="workflow" width="80%"/></p>
+![workflow](./docs/assets/workflow.png)
 
 ## Why this project?
 
@@ -73,12 +73,15 @@ app:
   - level: verbose
     file: stderr
 
-  # use system authorization service
-  authService:
+  # configure authorization service
+  auth_service:
+    # name of the authorization service, one of [system, webhook]
     name: system
+    # please refer to ./docs/authorization
+    config: {}
 
   # use system keychain service
-  keychainService:
+  keychain_service:
     name: system
 
 fs:
@@ -95,18 +98,18 @@ fs:
 
   # choose login interface
   # currently only supports `cli`
-  loginInterface: cli
+  login_interface: cli
 
   # NOTE: the authorization is process specific as noted in `How it works?`
   #       their penalty & permit durations are timed individually
 
   # duration to always deny access after authorization failed
-  defaultPenaltyDuration: 10s
+  default_penalty_duration: 10s
 
   # duration to always allow access after authorization succeeded
   #
   # defaults to 0, which means always request authorization
-  defaultPermitDuration: 0s
+  default_permit_duration: 0s
 
   # filesystem spec
   # list of password managers and their file mounts
@@ -130,10 +133,10 @@ fs:
       to: ${HOME}/.ssh/joe.doyle
 
       # override defaultPenaltyDuration
-      penaltyDuration: 5s
+      penalty_duration: 5s
 
       # override defaultPermitDuration
-      permitDuration: 5s
+      permit_duration: 5s
 ```
 
 ## Build and Install

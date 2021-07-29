@@ -56,22 +56,21 @@ jobs:
 
   unit-tests:
     if: contains(github.head_ref, 'deps/') == false
-    needs:
-    - stylecheck
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
       with:
         go-version: 1.16.x
+    - uses: arhat-dev/actions-setup-dukkha@master
 
     - name: Test Packages
       run: |
-        make test.pkg
+        dukkha golang local test credentialfs -m pkg=./pkg
 
     - name: Test Commands
       run: |
-        make test.cmd
+        dukkha golang local test credentialfs -m pkg=./cmd
 
     - uses: sonarsource/sonarqube-scan-action@v1.0.0
       env:

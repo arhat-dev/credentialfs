@@ -1,0 +1,10 @@
+golang:test:
+- name: credentialfs
+  matrix:
+    pkg:
+    - ./cmd
+    - ./pkg
+  cgo:
+    enabled: true
+  verbose: true
+  path@env: ${MATRIX_PKG}/...

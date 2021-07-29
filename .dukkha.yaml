@@ -1,8 +1,9 @@
 include:
-- scripts/build.yaml
+- scripts/*.yaml
 - cicd/*.yaml
 
-bootstrap:
+global:
   cache_dir: build/dukkha-cache
   env:
-  - GIT_DEFAULT_BRANCH=master
+  - name: GIT_DEFAULT_BRANCH
+    value: master

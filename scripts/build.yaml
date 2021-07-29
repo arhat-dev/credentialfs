@@ -2,9 +2,12 @@ tools:
   golang:
   - name: local
     env:
-    - GO111MODULE=on
-    - GO_PROXY=direct
-    - GO_SUMDB=off
+    - name: GO111MODULE
+      value: "on"
+    - name: GO_PROXY
+      value: direct
+    - name: GO_SUMDB
+      value: "off"
     cmd: [go]
 
   - name: in-docker
@@ -14,17 +17,17 @@ tools:
     - -it
     - --rm
     - -e
-    - CGO_ENABLED={{ .Env.CGO_ENABLED | default "false" }}
+    - CGO_ENABLED
     - -e
     - GO111MODULE=on
     - -e
-    - GO_PROXY=direct
+    - GO_PROXY
     - -e
-    - GO_SUMDB=off
+    - GO_SUMDB
     - -e
-    - GOOS={{ .Env.MATRIX_KERNEL | default .Env.HOST_KERNEL }}
+    - GOOS
     - -e
-    - GOARCH={{ .Env.MATRIX_ARCH | default .Env.HOST_ARCH | getGolangArch }}
+    - GOARCH
     - -v
     - "{{ .Env.DUKKHA_WORKING_DIR }}:{{ .Env.DUKKHA_WORKING_DIR }}"
     - -w

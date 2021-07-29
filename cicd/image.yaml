@@ -2,7 +2,8 @@ tools:
   docker:
   - name: local
     env:
-    - DOCKER_BUILDKIT=1
+    - name: DOCKER_BUILDKIT
+      value: "1"
 
   buildah:
   - name: local

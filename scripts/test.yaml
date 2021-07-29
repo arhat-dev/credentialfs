@@ -1,10 +1,19 @@
 golang:test:
 - name: credentialfs
   matrix:
+    kernel:
+    - linux
+    - macos
+    - windows
     pkg:
     - ./cmd
     - ./pkg
   cgo:
-    enabled: true
+    enabled@template: |
+      {{- if eq .Env.MATRIX_KERNEL "darwin" -}}
+        true
+      {{- else -}}
+        false
+      {{- end -}}
   verbose: true
   path@env: ${MATRIX_PKG}/...

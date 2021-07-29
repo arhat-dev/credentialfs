@@ -56,7 +56,17 @@ jobs:
 
   unit-tests:
     if: contains(github.head_ref, 'deps/') == false
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+        - kernel: linux
+          os: ubuntu-latest
+        - kernel: darwin
+          os: macos-latest
+        - kernel: windows
+          os: windows-latest
+      fail-fast: false
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
@@ -66,24 +76,28 @@ jobs:
 
     - name: Test Packages
       run: |
-        dukkha golang local test credentialfs -m pkg=./pkg
+        dukkha golang local test credentialfs \
+          -m pkg=./pkg -m kernel=${{ matrix.kernel }}
 
     - name: Test Commands
       run: |
-        dukkha golang local test credentialfs -m pkg=./cmd
+        dukkha golang local test credentialfs \
+          -m pkg=./cmd -m kernel=${{ matrix.kernel }}
 
     - uses: sonarsource/sonarqube-scan-action@v1.0.0
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-  build-linux-images:
+  build-images:
     if: contains(github.head_ref, 'deps/') == false
     strategy:
       matrix:
-        os:
-        - ubuntu-latest
-        # - windows-latest
+        include:
+        - os: ubuntu-latest
+          kernel: linux
+        # - os: windows-latest
+        #   kernel: windows
     needs:
     - stylecheck
     - unit-tests
@@ -97,5 +111,7 @@ jobs:
         GHCR_USER: ${{ github.actor }}
         GHCR_PASS: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        dukkha buildah local build credentialfs
-        dukkha buildah local push credentialfs
+        dukkha buildah local build credentialfs \
+          -m kernel=${{ matrix.kernel }}
+        dukkha buildah local push credentialfs \
+          -m kernel=${{ matrix.kernel }}

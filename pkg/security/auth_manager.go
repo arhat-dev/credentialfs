@@ -128,6 +128,8 @@ func (m *AuthorizationManager) RequestAuth(
 		}
 
 		_ = m.penaltyTQ.OfferWithDelay(target, struct{}{}, dur)
+
+		return err
 	}
 
 	dur := m.defaultPermitDuration

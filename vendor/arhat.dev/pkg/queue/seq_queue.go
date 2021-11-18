@@ -1,3 +1,4 @@
+//go:build !noqueue_seqqueue
 // +build !noqueue_seqqueue
 
 /*

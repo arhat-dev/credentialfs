@@ -16,35 +16,39 @@ limitations under the License.
 
 package tlshelper
 
+import (
+	"arhat.dev/rs"
+)
+
 type TLSPreSharedKeyConfig struct {
+	rs.BaseField `json:"-" yaml:"-"`
+
 	// map server hint(s) to pre shared key(s)
 	// colon separated base64 encoded key value pairs
-	ServerHintMapping []string `json:"serverHintMapping" yaml:"serverHintMapping"`
+	ServerHintMapping []string `json:"server_hint_mapping" yaml:"server_hint_mapping"`
 	// the client hint provided to server, base64 encoded value
-	IdentityHint string `json:"identityHint" yaml:"identityHint"`
+	IdentityHint string `json:"identity_hint" yaml:"identity_hint"`
 }
 
 // TLSConfig for common tls settings, support both client and server tls
 // nolint:maligned
 type TLSConfig struct {
+	rs.BaseField `json:"-" yaml:"-"`
+
 	Enabled bool `json:"enabled" yaml:"enabled"`
 
-	CaCert string `json:"caCert" yaml:"caCert"`
+	CaCert string `json:"ca_cert" yaml:"ca_cert"`
 	Cert   string `json:"cert" yaml:"cert"`
 	Key    string `json:"key" yaml:"key"`
 
-	CaCertData string `json:"caCertData" yaml:"caCertData"`
-	CertData   string `json:"certData" yaml:"certData"`
-	KeyData    string `json:"keyData" yaml:"keyData"`
-
-	ServerName         string `json:"serverName" yaml:"serverName"`
-	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
+	ServerName         string `json:"server_name" yaml:"server_name"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify" yaml:"insecure_skip_verify"`
 	// write tls session shared key to this file
-	KeyLogFile   string   `json:"keyLogFile" yaml:"keyLogFile"`
-	CipherSuites []string `json:"cipherSuites" yaml:"cipherSuites"`
+	KeyLogFile   string   `json:"key_log_file" yaml:"key_log_file"`
+	CipherSuites []string `json:"cipher_suites" yaml:"cipher_suites"`
 
 	// options for dtls
-	AllowInsecureHashes bool `json:"allowInsecureHashes" yaml:"allowInsecureHashes"`
+	AllowInsecureHashes bool `json:"allow_insecure_hashes" yaml:"allow_insecure_hashes"`
 
-	PreSharedKey TLSPreSharedKeyConfig `json:"preSharedKey" yaml:"preSharedKey"`
+	PreSharedKey TLSPreSharedKeyConfig `json:"pre_shared_key" yaml:"pre_shared_key"`
 }

@@ -1,3 +1,4 @@
+//go:build !noqueue_jobqueue
 // +build !noqueue_jobqueue
 
 /*

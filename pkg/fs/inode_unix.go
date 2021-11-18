@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"arhat.dev/pkg/hashhelper"
+	"arhat.dev/pkg/sha256helper"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 
@@ -101,7 +101,7 @@ func newLeafNode(
 		data: data,
 
 		target:       to,
-		hashedTarget: hex.EncodeToString(hashhelper.Sha256Sum(data)),
+		hashedTarget: hex.EncodeToString(sha256helper.Sum(data)),
 
 		penaltyDuration: penaltyDuration,
 		permitDuration:  permitDuration,

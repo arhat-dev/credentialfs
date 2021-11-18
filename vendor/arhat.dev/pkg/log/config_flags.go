@@ -1,3 +1,4 @@
+//go:build !noflaghelper
 // +build !noflaghelper
 
 /*

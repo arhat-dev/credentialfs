@@ -1,0 +1,100 @@
+global:
+  cache_dir: build/dukkha-cache
+  env:
+  - name: GIT_DEFAULT_BRANCH
+    value: master
+
+tools:
+  golang:
+  - name: local
+    env:
+    - name: GO111MODULE
+      value: "on"
+    - name: GO_PROXY
+      value: direct
+    - name: GO_SUMDB
+      value: "off"
+    cmd: [go]
+
+  - name: in-docker
+    cmd@template: [
+      docker, run, -it, --rm,
+      -e, CGO_ENABLED, -e, GO111MODULE=on, -e, GO_PROXY,
+      -e, GO_SUMDB, -e, GOOS, -e, GOARCH, -e, CGO_CFLAGS,
+      -v, "{{ .Env.DUKKHA_WORKING_DIR }}:{{ .Env.DUKKHA_WORKING_DIR }}",
+      -w, "{{ .Env.DUKKHA_WORKING_DIR }}",
+      # yamllint disable-line rule:quoted-strings
+      "ghcr.io/arhat-dev/builder-golang:1.16-alpine-{{ .Env.MATRIX_ARCH | default .Env.HOST_ARCH }}",
+      go,
+    ]
+
+renderers:
+  env:
+    enable_exec: true
+
+golang:test:
+- name: rs
+  env:
+  - name: TEST_PROFILE_DIR
+    value: build/test-profile
+  matrix:
+    kernel@env:
+    - ${HOST_KERNEL}
+    arch@env:
+    - ${HOST_ARCH}
+    pkg@env|template: |-
+      {{-
+        eval.Shell "go list ./..."
+        | removePrefix "$(go list -m)"
+        | addPrefix "- ./"
+      -}}
+  hooks:
+    before:
+    - shell: mkdir -p ${TEST_PROFILE_DIR}
+  cgo:
+    enabled: true
+  race: true
+  profile:
+    output_dir: build/test-profile
+    coverage:
+      enabled: true
+  benchmark:
+    enabled: true
+  json_output_file@template: |-
+    {{ .Env.TEST_PROFILE_DIR }}/result-
+    {{- .Env.MATRIX_PKG | strings.KebabCase -}}.json
+  verbose: true
+  path@env: ${MATRIX_PKG}
+
+- name: benchmark
+  env:
+  - name: TEST_PROFILE_DIR
+    value: build/test-profile
+  matrix:
+    kernel@env:
+    - ${HOST_KERNEL}
+    arch@env:
+    - ${HOST_ARCH}
+    pkg:
+    - ./
+  chdir: ./benchmark
+  hooks:
+    before:
+    - shell: mkdir -p ${TEST_PROFILE_DIR}
+  cgo:
+    enabled: true
+  race: true
+  profile:
+    output_dir: build/test-profile
+    coverage:
+      enabled: true
+    memory:
+      enabled: true
+    cpu:
+      enabled: true
+  benchmark:
+    enabled: true
+  json_output_file@template: |-
+    {{ .Env.TEST_PROFILE_DIR }}/result-benchmark.json
+  verbose: true
+  path: ./

@@ -1,3 +1,4 @@
+//go:build !noenvhelper_kube
 // +build !noenvhelper_kube
 
 /*

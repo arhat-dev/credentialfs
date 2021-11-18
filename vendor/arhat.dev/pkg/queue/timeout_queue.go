@@ -1,3 +1,4 @@
+//go:build !noqueue_timeoutqueue
 // +build !noqueue_timeoutqueue
 
 /*

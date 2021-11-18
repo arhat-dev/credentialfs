@@ -1,3 +1,4 @@
+//go:build !noconfhelper_tls
 // +build !noconfhelper_tls
 
 /*
@@ -21,17 +22,21 @@ package tlshelper
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
 // CipherSuites for tls and dtls
 var CipherSuites = map[string]uint16{
+	//
+	//
+	// crypto/tls supported cipher suites
+	//
+	//
+
 	"TLS_RSA_WITH_RC4_128_SHA":                tls.TLS_RSA_WITH_RC4_128_SHA,
 	"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
@@ -64,10 +69,6 @@ var CipherSuites = map[string]uint16{
 	"TLS_AES_256_GCM_SHA384":       tls.TLS_AES_256_GCM_SHA384,
 	"TLS_CHACHA20_POLY1305_SHA256": tls.TLS_CHACHA20_POLY1305_SHA256,
 
-	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
-	// that the client is doing version fallback. See RFC 7507.
-	"TLS_FALLBACK_SCSV": tls.TLS_FALLBACK_SCSV,
-
 	//
 	//
 	// pion/dtls supported cipher suites
@@ -89,6 +90,7 @@ var CipherSuites = map[string]uint16{
 	"TLS_PSK_WITH_AES_128_CCM":        0xc0a4,
 	"TLS_PSK_WITH_AES_128_CCM_8":      0xc0a8,
 	"TLS_PSK_WITH_AES_128_GCM_SHA256": 0x00a8,
+	"TLS_PSK_WITH_AES_128_CBC_SHA256": 0x00ae,
 }
 
 type oneTimeWriter struct {
@@ -113,7 +115,7 @@ func (w oneTimeWriter) Write(data []byte) (int, error) {
 	return n, err
 }
 
-func (c TLSConfig) GetTLSConfig(server bool) (_ *tls.Config, err error) {
+func (c *TLSConfig) GetTLSConfig(server bool) (_ *tls.Config, err error) {
 	if !c.Enabled {
 		return nil, nil
 	}
@@ -131,18 +133,15 @@ func (c TLSConfig) GetTLSConfig(server bool) (_ *tls.Config, err error) {
 		}
 	}
 
-	if c.CaCert != "" || c.CaCertData != "" {
-		var caBytes []byte
-		if c.CaCert != "" {
-			caBytes, err = ioutil.ReadFile(c.CaCert)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read caCert: %w", err)
-			}
+	if len(c.CaCert) != 0 {
+		caBytes := []byte(c.CaCert)
+
+		if server {
+			tlsConfig.ClientCAs = x509.NewCertPool()
 		} else {
-			caBytes = []byte(c.CaCertData)
+			tlsConfig.RootCAs = x509.NewCertPool()
 		}
 
-		tlsConfig.RootCAs = x509.NewCertPool()
 		block, _ := pem.Decode(caBytes)
 		if block == nil {
 			// not encoded in pem format
@@ -171,7 +170,7 @@ func (c TLSConfig) GetTLSConfig(server bool) (_ *tls.Config, err error) {
 		}
 	}
 
-	if c.KeyLogFile != "" {
+	if len(c.KeyLogFile) != 0 {
 		err = os.Remove(c.KeyLogFile)
 		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to cleanup key log file: %w", err)
@@ -181,28 +180,12 @@ func (c TLSConfig) GetTLSConfig(server bool) (_ *tls.Config, err error) {
 	}
 
 	var certBytes, keyBytes []byte
-	if c.Cert != "" {
-		certBytes, err = ioutil.ReadFile(c.Cert)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load cert: %w", err)
-		}
-	} else if c.CertData != "" {
-		certBytes, err = base64.StdEncoding.DecodeString(c.CertData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode cert data (base64): %w", err)
-		}
+	if len(c.Cert) != 0 {
+		certBytes = []byte(c.Cert)
 	}
 
-	if c.Key != "" {
-		keyBytes, err = ioutil.ReadFile(c.Key)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load key: %w", err)
-		}
-	} else {
-		keyBytes, err = base64.StdEncoding.DecodeString(c.KeyData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode key data (base64): %w", err)
-		}
+	if len(c.Key) != 0 {
+		keyBytes = []byte(c.Key)
 	}
 
 	if len(keyBytes) != 0 && len(certBytes) != 0 {

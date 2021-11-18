@@ -48,43 +48,63 @@ func newKeychainItem(pmDriver, configName string) *keychain.Item {
 	return &item
 }
 
-// nolint:unused,deadcode
 type loginData struct {
-	Username string `json:"username" yaml:"username"`
-	Password string `json:"password" yaml:"password"`
+	username []byte
+	password []byte
+}
+
+func (t *loginData) Marshal() []byte {
+	// TODO: currently made compatible with previous version
+
+	data, err := json.Marshal(map[string]string{
+		"username": string(t.username),
+		"password": string(t.password),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	return data
+}
+
+func (t *loginData) Unmarshal(data []byte) error {
+	m := make(map[string]string)
+	err := json.Unmarshal(data, &m)
+	if err != nil {
+		return err
+	}
+
+	t.password = []byte(m["password"])
+	t.username = []byte(m["username"])
+
+	return nil
 }
 
 type keychainHandler struct{}
 
-func (h *keychainHandler) SaveLogin(pmDriver, configName, username, password string) error {
-	login := &loginData{
-		Username: username,
-		Password: password,
-	}
-
-	data, err := json.Marshal(login)
-	if err != nil {
-		return fmt.Errorf("keychain: failed to marshal login: %w", err)
-	}
-
+func (h *keychainHandler) SaveLogin(pmDriver, configName string, username, password []byte) error {
 	item := newKeychainItem(pmDriver, configName)
 
 	item.SetSynchronizable(keychain.SynchronizableNo)
 	item.SetAccessible(keychain.AccessibleWhenUnlocked)
-	item.SetData(data)
+	item.SetData((&loginData{
+		username: username,
+		password: password,
+	}).Marshal())
 
-	err = keychain.AddItem(*item)
-	if err != nil {
-		if err == keychain.ErrorDuplicateItem {
-			err = keychain.UpdateItem(*newKeychainItem(pmDriver, configName), *item)
-			if err != nil {
-				return fmt.Errorf("keychain: failed to update login: %w", err)
-			}
+	err := keychain.AddItem(*item)
+	if err == nil {
+		return nil
+	}
 
-			return nil
-		}
-
+	if err != keychain.ErrorDuplicateItem {
 		return fmt.Errorf("keychain: failed to add login: %w", err)
+	}
+
+	err = keychain.UpdateItem(*newKeychainItem(pmDriver, configName), *item)
+	if err != nil {
+		return fmt.Errorf("keychain: failed to update login: %w", err)
 	}
 
 	return nil
@@ -98,7 +118,8 @@ func (h *keychainHandler) DeleteLogin(pmDriver, configName string) error {
 
 	return nil
 }
-func (h *keychainHandler) GetLogin(pmDriver, configName string) (username, password string, err error) {
+
+func (h *keychainHandler) GetLogin(pmDriver, configName string) (username, password []byte, err error) {
 	query := newKeychainItem(pmDriver, configName)
 
 	query.SetMatchLimit(keychain.MatchLimitOne)
@@ -106,19 +127,19 @@ func (h *keychainHandler) GetLogin(pmDriver, configName string) (username, passw
 
 	results, err := keychain.QueryItem(*query)
 	if err != nil {
-		return "", "", fmt.Errorf("keychain: failed to query item: %w", err)
+		return nil, nil, fmt.Errorf("keychain: failed to query item: %w", err)
 	}
 
 	if len(results) != 1 {
-		return "", "", security.ErrNotFound
+		return nil, nil, security.ErrNotFound
 	}
 
 	login := &loginData{}
-	err = json.Unmarshal(results[0].Data, login)
+	err = login.Unmarshal(results[0].Data)
 	if err != nil {
 		_ = h.DeleteLogin(pmDriver, configName)
-		return "", "", fmt.Errorf("keychain: failed to unmarshal login data: %w", security.ErrOldInvalid)
+		return nil, nil, fmt.Errorf("keychain: failed to unmarshal login data: %w", security.ErrOldInvalid)
 	}
 
-	return login.Username, login.Password, nil
+	return login.username, login.password, nil
 }

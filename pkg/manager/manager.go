@@ -114,8 +114,6 @@ func (m *Manager) Start() (err error) {
 	}
 
 	for _, b := range m.fsSpec {
-		_, _ = fmt.Fprintf(os.Stdout, "Trying to login to %q\n", b.pm.ConfigName())
-
 		err = b.pm.Login(m.createLoginHandleFunc(b.pm.ConfigName()))
 		if err != nil {
 			return err

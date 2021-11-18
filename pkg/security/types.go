@@ -34,13 +34,13 @@ type AuthorizationHandler interface {
 
 type KeychainHandler interface {
 	// SaveLogin saves username and password to system keychain
-	SaveLogin(pmDriver, configName, username, password string) error
+	SaveLogin(pmDriver, configName string, username, password []byte) error
 
 	// DeleteLogin deletes stored username and password
 	DeleteLogin(pmDriver, configName string) error
 
 	// GetLogin retrieves previously stored username and password
-	GetLogin(pmDriver, configName string) (username, password string, err error)
+	GetLogin(pmDriver, configName string) (username, password []byte, err error)
 }
 
 type OperationKind int

@@ -23,6 +23,7 @@ type syncCipherNotification struct {
 	RevisionDate  time.Time `msgpack:"RevisionDate"`
 }
 
+// startSyncing connects server websocket (SignalR)
 func (d *Driver) startSyncing(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -129,7 +130,7 @@ func (d *Driver) startSyncing(ctx context.Context) error {
 			// TODO: log syncing
 
 			// TODO: find a better to refresh cache
-			err = d.buildCache(d.encKey)
+			err = d.buildCache(d.encKey, d.privateKey)
 			if err != nil {
 				// TODO: log re-sync error
 				continue

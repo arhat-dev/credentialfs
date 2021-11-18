@@ -20,10 +20,10 @@ const (
 )
 
 type LoginInput struct {
-	Username string
-	Password string
+	Username []byte
+	Password []byte
 
-	ValueFor2FA string
+	ValueFor2FA []byte
 }
 
 // LoginInputCallbackFunc used for requesting login input

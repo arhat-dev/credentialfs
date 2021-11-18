@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"arhat.dev/pkg/iohelper"
 	"golang.org/x/term"
 
 	"arhat.dev/credentialfs/pkg/pm"
@@ -20,14 +21,18 @@ func HandleCommandLineLoginInput(configName string) pm.LoginInputCallbackFunc {
 			result = &pm.LoginInput{}
 		}
 
+		_, err = fmt.Fprintf(os.Stderr, "Login to pm %q\n", configName)
+		if err != nil {
+			return nil, err
+		}
+
 		// handle login with username and password and filter out
 		// unsupported 2FA methods
 		switch t {
 		case pm.TwoFactorKindNone, pm.TwoFactorKindOTP:
 			if len(result.Username) == 0 {
 				result.Username, err = requestCommandLineInput(
-					fmt.Sprintf("Please enter your username for pm %q: ", configName),
-					false,
+					"username: ", false,
 				)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read username: %w", err)
@@ -36,9 +41,9 @@ func HandleCommandLineLoginInput(configName string) pm.LoginInputCallbackFunc {
 
 			if len(result.Password) == 0 {
 				result.Password, err = requestCommandLineInput(
-					fmt.Sprintf("Please enter your password for pm %q: ", configName),
-					true,
+					"password: ", true,
 				)
+				_, _ = fmt.Fprintln(os.Stderr)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read password: %w", err)
 				}
@@ -57,11 +62,10 @@ func HandleCommandLineLoginInput(configName string) pm.LoginInputCallbackFunc {
 			switch t {
 			case pm.TwoFactorKindOTP:
 				result.ValueFor2FA, err = requestCommandLineInput(
-					fmt.Sprintf("Please enter your OTP for pm %q: ", configName),
-					false,
+					"one time password: ", false,
 				)
 				if err != nil {
-					return nil, fmt.Errorf("failed to read OTP: %w", err)
+					return nil, fmt.Errorf("failed to read otp: %w", err)
 				}
 			}
 		}
@@ -77,29 +81,15 @@ func HandleCommandLineLoginInput(configName string) pm.LoginInputCallbackFunc {
 	}
 }
 
-func requestCommandLineInput(prompt string, hideInput bool) (string, error) {
-	var (
-		result string
-	)
-
-	_, err := fmt.Fprint(os.Stdout, prompt)
+func requestCommandLineInput(prompt string, hideInput bool) ([]byte, error) {
+	_, err := fmt.Fprint(os.Stderr, prompt)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if hideInput {
-		pwd, err2 := term.ReadPassword(int(os.Stdin.Fd()))
-		if err2 != nil {
-			return string(pwd), err2
-		}
-
-		result = string(pwd)
-	} else {
-		_, err = fmt.Fscanf(os.Stdin, "%s\n", &result)
-		if err != nil {
-			return "", err
-		}
+		return term.ReadPassword(int(os.Stdin.Fd()))
 	}
 
-	return result, nil
+	return iohelper.ReadInputLine(os.Stdin)
 }

@@ -1,6 +1,7 @@
 package bitwarden
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -19,45 +20,59 @@ import (
 	"arhat.dev/credentialfs/pkg/pm"
 )
 
-func (d *Driver) login(input *pm.LoginInput) error {
-	email := strings.ToLower(strings.TrimSpace(input.Username))
-
+// prelogin to generate master key
+func (d *Driver) _prelogin(email, password []byte) ([]byte, error) {
 	resp, err := d.client.PostAccountsPrelogin(d.ctx, bw.PostAccountsPreloginJSONRequestBody{
 		Email: types.Email(email),
 	}, d.prependPath("api"))
 	if err != nil {
-		return fmt.Errorf("failed to request prelogin: %w", err)
+		return nil, fmt.Errorf("failed to request prelogin: %w", err)
 	}
 
 	pr, err := bw.ParsePostAccountsPreloginResponse(resp)
 	_ = resp.Body.Close()
 	if err != nil {
-		return fmt.Errorf("failed to parse prelogin response: %w", err)
+		return nil, fmt.Errorf("failed to parse prelogin response: %w", err)
 	}
 
 	if pr.JSON200 == nil {
-		return fmt.Errorf("failed to get prelogin config %s: %s", pr.Status(), string(pr.Body))
+		return nil, fmt.Errorf("failed to get prelogin config %s: %s", pr.Status(), string(pr.Body))
 	}
 
 	kdfTypePtr := pr.JSON200.Kdf
-	kdfIterationsPtr := pr.JSON200.KdfIterations
+	kdfType := KDFType_PBKDF2_SHA256
+	if kdfTypePtr != nil {
+		kdfType = *kdfTypePtr
+	}
 
-	masterKey, err := makeMasterKey(input.Password, email, kdfTypePtr, kdfIterationsPtr)
+	kdfIterationsPtr := pr.JSON200.KdfIterations
+	kdfIterations := minimumPBKDF2Iterations
+	if kdfIterationsPtr != nil {
+		kdfIterations = int(*kdfIterationsPtr)
+	}
+
+	return makeMasterKey(email, password, kdfType, kdfIterations)
+}
+
+func (d *Driver) login(input *pm.LoginInput) error {
+	email := bytes.ToLower(bytes.TrimSpace(input.Username))
+
+	masterKey, err := d._prelogin(email, input.Password)
 	if err != nil {
-		return fmt.Errorf("failed to make kdf key: %w", err)
+		return err
 	}
 
 	values := &url.Values{}
 	values.Set("grant_type", "password")
 	values.Set("scope", "api offline_access")
 	values.Set("client_id", "cli")
-	values.Set("username", email)
+	values.Set("username", string(email))
 	values.Set("deviceIdentifier", d.deviceID)
 	values.Set("deviceName", "credentialfs")
 	values.Set("deviceType", getDeviceType())
 
-	hashedPassword := hashPassword(input.Password, masterKey)
-	values.Set("password", hashedPassword)
+	mph := generateMasterPasswordHash(input.Password, masterKey)
+	values.Set("password", mph)
 
 	req, err := http.NewRequestWithContext(
 		d.ctx,
@@ -70,10 +85,10 @@ func (d *Driver) login(input *pm.LoginInput) error {
 	}
 
 	_ = d.fixRequest(d.ctx, req)
-	req.Header.Set("Auth-Email", email)
+	req.Header.Set("Auth-Email", string(email))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 
-	resp, err = d.client.Client.Do(req)
+	resp, err := d.client.Client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to request login: %w", err)
 	}
@@ -88,14 +103,17 @@ func (d *Driver) login(input *pm.LoginInput) error {
 		return fmt.Errorf("login failed %s: %s", resp.Status, string(respBody))
 	}
 
-	// https://github.com/bitwarden/jslib/blob/master/src/models/response/identityTokenResponse.ts
+	// https://github.com/bitwarden/jslib/blob/master/common/src/models/response/identityTokenResponse.ts
 	type identityTokenResp struct {
 		AccessToken  string `json:"access_token"`
 		ExpiresIn    int    `json:"expires_in"`
 		RefreshToken string `json:"refresh_token"`
 		TokenType    string `json:"token_type"`
 
-		// fields below need special parse
+		// fields below need special parsing
+		// refs:
+		// 	https://github.com/bitwarden/jslib/blob/ea9a8b979d5b5797ddf010bbc625843b149065e9/common/src/models/response/identityTokenResponse.ts#L28
+		// 	https://github.com/bitwarden/jslib/blob/ea9a8b979d5b5797ddf010bbc625843b149065e9/common/src/models/response/baseResponse.ts#L8
 		ResetMasterPassword bool       `json:"resetmasterpassword"`
 		PrivateKey          string     `json:"privatekey"`
 		EncKey              string     `json:"key"`
@@ -136,7 +154,7 @@ func (d *Driver) login(input *pm.LoginInput) error {
 		return fmt.Errorf("failed to decode master key: %w", err)
 	}
 
-	encKey, err := encKeyData.decryptAsKey(&bitwardenKey{
+	encKey, err := encKeyData.decrypt_as_key(&bitwardenKey{
 		kind: encKeyData.encryptedWith,
 		key:  masterKey,
 	})
@@ -149,7 +167,7 @@ func (d *Driver) login(input *pm.LoginInput) error {
 		return fmt.Errorf("failed to decode private key: %w", err)
 	}
 
-	pk, err := pkData.decryptAsKey(encKey)
+	pk, err := pkData.decrypt_as_key(encKey)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt private key: %w", err)
 	}
@@ -161,7 +179,7 @@ func (d *Driver) login(input *pm.LoginInput) error {
 		d.refreshToken = data.RefreshToken
 
 		d.masterKey = masterKey
-		d.hashedPassword = hashedPassword
+		d.hashedPassword = mph
 
 		d.encKey = encKey
 		d.privateKey = pk
@@ -170,9 +188,10 @@ func (d *Driver) login(input *pm.LoginInput) error {
 	return nil
 }
 
-func hashPassword(password string, key []byte) string {
+// generateMasterPasswordHash generates master password hash using master key
+func generateMasterPasswordHash(masterPassword, masterKey []byte) string {
 	return base64.StdEncoding.EncodeToString(
-		pbkdf2.Key(key, []byte(password), 1, sha256.Size, sha256.New),
+		pbkdf2.Key(masterKey, masterPassword, 1, sha256.Size, sha256.New),
 	)
 }
 

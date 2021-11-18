@@ -9,7 +9,7 @@ import (
 	"arhat.dev/credentialfs/pkg/pm"
 )
 
-func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
+func (d *Driver) buildCache(globalEncKey, _ *bitwardenKey) error {
 	resp, err := d.client.GetSync(d.ctx, &bw.GetSyncParams{
 		ExcludeDomains: constant.True(),
 	}, d.prependPath("api"))
@@ -18,7 +18,6 @@ func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 	}
 
 	sr, err := bw.ParseGetSyncResponse(resp)
-	_ = resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("failed to parse sync response: %w", err)
 	}
@@ -28,13 +27,29 @@ func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 	}
 
 	if sr.JSON200.Ciphers == nil {
+		// no data to sync
 		return nil
 	}
 
 	orgKeys := make(map[string]*bitwardenKey)
 
-	if sr.JSON200.Profile != nil && sr.JSON200.Profile.Organizations != nil {
-		for _, org := range *sr.JSON200.Profile.Organizations {
+	if profile := sr.JSON200.Profile; profile != nil && profile.Organizations != nil {
+		userPrivateKey := profile.PrivateKey
+		var upk *bitwardenKey
+		if userPrivateKey != nil {
+			var upkd *protectedData
+			upkd, err = decodeProtectedData(*userPrivateKey)
+			if err != nil {
+				return fmt.Errorf("failed to decode user private key: %w", err)
+			}
+
+			upk, err = upkd.decrypt_as_key(globalEncKey)
+			if err != nil {
+				return fmt.Errorf("failed to decrypt user private key: %w", err)
+			}
+		}
+
+		for _, org := range *profile.Organizations {
 			if org.Key == nil || org.Id == nil {
 				continue
 			}
@@ -44,9 +59,9 @@ func (d *Driver) buildCache(globalEncKey *bitwardenKey) error {
 				return fmt.Errorf("failed to decode org key: %w", err)
 			}
 
-			orgKey, err := orgKeyData.decryptAsKey(globalEncKey)
+			orgKey, err := orgKeyData.decrypt_as_key(upk)
 			if err != nil {
-				return fmt.Errorf("failed to parse org key: %w", err)
+				return fmt.Errorf("failed to decrypt org key: %w", err)
 			}
 
 			orgKeys[*org.Id] = orgKey
@@ -259,7 +274,7 @@ func parseCipherAttachments(
 				return
 			}
 
-			attachmentEncKey, err = keyData.decryptAsKey(key)
+			attachmentEncKey, err = keyData.decrypt_as_key(key)
 			if err != nil {
 				err = fmt.Errorf("failed to decrypt attachment key: %w", err)
 				return

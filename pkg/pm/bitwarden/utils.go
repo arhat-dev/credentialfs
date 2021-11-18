@@ -108,7 +108,7 @@ func (d *Driver) downloadAttachment(cipher *cacheValue) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read attachment data: %w", err)
 	}
 
-	data, err = decryptData(data, cipher.Key)
+	data, err = cipher.Key.decrypt(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt attachment content: %w", err)
 	}

@@ -257,9 +257,10 @@ func (d *Driver) Login(requestUserLogin pm.LoginInputCallbackFunc) error {
 func (d *Driver) Sync(ctx context.Context) (<-chan pm.CredentialUpdate, error) {
 	d.mu.RLock()
 	encKey := d.encKey
+	upk := d.privateKey
 	d.mu.RUnlock()
 
-	err := d.buildCache(encKey)
+	err := d.buildCache(encKey, upk)
 	if err != nil {
 		return nil, err
 	}
